@@ -167,12 +167,21 @@ def process_input_for_simple_app(user_input: str|None):
 
         with st.chat_message("assistant"):
             with st.spinner("Processing..."):
-                # Get the actual response from modular orchestrator
-                response = st.session_state.runner.process_query(user_input)
+                # Convert session state messages to LangChain message format
+                conversation_messages = []
+                for msg_data in st.session_state.messages:
+                    if isinstance(msg_data, dict) and "message" in msg_data:
+                        conversation_messages.append(msg_data["message"])
+                
+                # Get the actual response from modular orchestrator with full conversation
+                response = st.session_state.runner.process_query(conversation_messages)
 
                 # Create and display AI message
                 ai_message = AIMessage(content=response)
-                st.session_state.messages.append({"message": ai_message})
+                st.session_state.messages.append({
+                    "message": ai_message,
+                    "agent": "assistant"
+                })
 
                 # Display response
                 st.write(response)

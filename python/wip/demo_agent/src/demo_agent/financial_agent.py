@@ -44,23 +44,10 @@ class FinancialAgentRunner:
         if callbacks:
             self.config["callbacks"] = callbacks
 
-    def process_query(self, user_query: str) -> str:
-        """Process a query through the modular multi-agent system"""
-        initial_state = {"messages": [HumanMessage(content=user_query)]}
 
-        # ```
-        # from galileo.handlers.langchain import GalileoCallback
-        #
-        # galileo_callback = GalileoCallback()
-        #
-        # self.graph.invoke(
-        #     {"messages": [HumanMessage(content=user_query)]},
-        #     {
-        #          "configurable": {"thread_id": "financial-agent"},
-        #          "callbacks": [galileo_callback]
-        #     }
-        # )
-        # ```
+    def process_query(self, conversation_messages: list) -> str:
+        """Process a query with full conversation history"""
+        initial_state = {"messages": conversation_messages}
         result = self.graph.invoke(initial_state, self.config)
 
         # Return the last message content
