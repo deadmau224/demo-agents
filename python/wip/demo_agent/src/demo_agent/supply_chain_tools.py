@@ -1,6 +1,30 @@
 from langchain_core.tools import tool
 import datetime
 
+from rag_tool import get_rag_system
+from knowledge_bases.supply_chain import SUPPLY_CHAIN_KNOWLEDGE
+
+@tool
+def rag_search(query: str) -> str:
+    """
+    Search the supply chain knowledge base for information about supply chain management,
+    risk management, supplier evaluation, logistics, inventory management, technology,
+    sustainability, compliance, and global supply chain considerations.
+
+    Args:
+        query: The question or topic to search for in the supply chain knowledge base
+
+    Returns:
+        Relevant information from the supply chain knowledge base
+    """
+    rag_instance = get_rag_system(
+        knowledge_content=SUPPLY_CHAIN_KNOWLEDGE,
+        index_name="supply-chain-rag",
+        namespace="supply-chain",
+        description="Supply Chain"
+    )
+    return rag_instance.search(query)
+
 @tool
 def check_supplier_compliance(supplier_id: str) -> str:
     """
@@ -211,3 +235,6 @@ def assess_disruption_risk(region: str = None, material: str = None, supplier_id
         report += f"- {action}\n"
     
     return report
+
+
+__all__ = ['rag_search', 'check_supplier_compliance', 'assess_disruption_risk']

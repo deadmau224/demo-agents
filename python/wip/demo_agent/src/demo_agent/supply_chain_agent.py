@@ -6,14 +6,13 @@ from langgraph.graph.state import CompiledStateGraph
 from langgraph.prebuilt import ToolNode, tools_condition
 from langchain_core.messages import HumanMessage
 
-from rag_tool import rag_search
+from supply_chain_tools import rag_search, check_supplier_compliance, assess_disruption_risk
 from shared_state import State
-from tools import check_supplier_compliance, assess_disruption_risk
 
 load_dotenv()
 
 TOOLS = [TavilySearch(max_results=2), assess_disruption_risk, check_supplier_compliance, rag_search]
-llm_with_tools = ChatOpenAI(model="gpt-4", name="Supply Chain Agent").bind_tools(TOOLS)
+llm_with_tools = ChatOpenAI(model="gpt-4.1", name="Supply Chain Agent").bind_tools(TOOLS)
 
 
 def invoke_chatbot(state):

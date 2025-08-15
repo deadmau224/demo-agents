@@ -9,10 +9,16 @@ from galileo.handlers.langchain import GalileoCallback
 from langchain_core.messages import AIMessage, HumanMessage
 
 from financial_agent import FinancialAgentRunner
+from john_deere.agent import JohnDeereAgentRunner
 from orchestrator import ModularMultiAgentOrchestrator
 from supply_chain_agent import SupplyChainAgentRunner
 
+# Load environment variables with explicit path
 load_dotenv()
+# Also try loading from parent directories in case of path issues
+load_dotenv("../../.env")
+load_dotenv("../.env")
+
 
 def display_chat_history():
     """Display all messages in the chat history with agent attribution."""
@@ -187,6 +193,9 @@ def multi_agent_app():
 
     # Process user input
     if user_input:
+        # Log user query
+        print(f"[USER QUERY RECEIVED] {user_input}")
+        
         # Add user message to chat history
         user_message = HumanMessage(content=user_input)
         st.session_state.messages.append({
@@ -199,13 +208,17 @@ def multi_agent_app():
             st.write(user_input)
 
         # Get routing decision and display workflow info
+        print(f"[ROUTING] Getting routing decision...")
         routing_decision = st.session_state.orchestrator.get_routing_decision(user_input)
+        print(f"[ROUTING] Decision: {routing_decision}")
         # Get response from modular orchestrator
         with st.chat_message("assistant"):
             with st.spinner("Processing..."):
 
                 # Get the actual response from modular orchestrator
+                print(f"[PROCESSING] Starting query processing...")
                 response = st.session_state.orchestrator.process_query(user_input)
+                print(f"[PROCESSING] Query processing completed. Response length: {len(response) if response else 0}")
 
                 # Create and display AI message
                 ai_message = AIMessage(content=response)
@@ -244,8 +257,19 @@ def supply_chain_agent_app():
     process_input_for_simple_app(user_input)
 
 
+def john_deere_agent_app():
+    user_input = orchestrate_streamlit_and_get_user_input(
+        "John Deere Agent",
+        "What are the specifications for the 6155R tractor?",
+        "Generate a quote for John Smith for a S780 combine with AutoTrac GPS"
+    )
+    if "runner" not in st.session_state:
+        st.session_state.runner = JohnDeereAgentRunner(callbacks=[GalileoCallback()])
+    process_input_for_simple_app(user_input)
+
+
 if __name__ == "__main__":
-    os.environ["GALILEO_PROJECT"] = "galileo-academy"
+    # os.environ["GALILEO_PROJECT"] = "galileo-academy"
     # os.environ["GALILEO_API_KEY"] = "<Read from .env file>"
     # os.environ["GALILEO_CONSOLE_URL"] = "<Read from .env file>"
 
@@ -255,5 +279,8 @@ if __name__ == "__main__":
     # os.environ["GALILEO_LOG_STREAM"] = "supply-chain"
     # supply_chain_agent_app()
 
-    os.environ["GALILEO_LOG_STREAM"] = "multi-agent"
-    multi_agent_app()
+    # os.environ["GALILEO_LOG_STREAM"] = "john-deere"
+    john_deere_agent_app()
+
+    # os.environ["GALILEO_LOG_STREAM"] = "multi-agent"
+    # multi_agent_app()

@@ -27,7 +27,7 @@ def intent_classifier(state: State):
         return {"next_agent": "supply_chain_agent"}
 
     # Use LLM to classify intent
-    classifier_llm = ChatOpenAI(model="gpt-4", temperature=0, name="Classifier LLM")
+    classifier_llm = ChatOpenAI(model="gpt-4.1", temperature=0, name="Classifier LLM")
 
     classification_prompt = f"""
     Analyze this user query and classify which agent(s) should handle it.

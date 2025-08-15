@@ -22,7 +22,7 @@ def spanish_translation(state: State):
         return {"spanish_response": "Error: No response to translate"}
 
     # Use LLM to translate to Spanish
-    translator_llm = ChatOpenAI(model="gpt-4", temperature=0, name="Spanish Translator")
+    translator_llm = ChatOpenAI(model="gpt-4.1", temperature=0, name="Spanish Translator")
 
     translation_prompt = f"""
     Translate the following supply chain analysis response into Spanish. 
@@ -58,7 +58,7 @@ def hindi_translation(state: State):
         return {"hindi_response": "Error: No response to translate"}
 
     # Use LLM to translate to Hindi
-    translator_llm = ChatOpenAI(model="gpt-4", temperature=0, name="Hindi translator")
+    translator_llm = ChatOpenAI(model="gpt-4.1", temperature=0, name="Hindi translator")
 
     translation_prompt = f"""
     Translate the following supply chain analysis response into Hindi. 
