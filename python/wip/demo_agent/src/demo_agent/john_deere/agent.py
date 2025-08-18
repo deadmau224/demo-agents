@@ -1,4 +1,6 @@
-from langchain_core.messages import HumanMessage
+import os
+from dotenv import load_dotenv
+from langchain_core.messages import BaseMessage, HumanMessage
 from langchain_openai import ChatOpenAI
 from langchain_tavily import TavilySearch
 from langgraph.graph import StateGraph, START
@@ -13,12 +15,24 @@ JOHN_DEERE_TOOLS = [
     generate_john_deere_quote
 ]
 
+load_dotenv()
+AI_GATEWAY_REGISTRATION_ID = os.getenv("AI_GATEWAY_REGISTRATION_ID") or ""
+
+if AI_GATEWAY_REGISTRATION_ID == "":
+    raise ValueError("AI_GATEWAY_REGISTRATION_ID is not set")
 
 def get_john_deere_agent() -> CompiledStateGraph:
     """Create the John Deere agent"""
-    llm_with_john_deere_tools = ChatOpenAI(model="gpt-4.1", name="John Deere Agent").bind_tools(JOHN_DEERE_TOOLS)
+    llm_with_john_deere_tools = ChatOpenAI(
+        model="gpt-4.1",
+        name="John Deere Agent",
+        base_url="https://ai-gateway.deere.com/openai",
+        default_headers={
+            "deere-ai-gateway-registration-id": AI_GATEWAY_REGISTRATION_ID
+        },
+    ).bind_tools(JOHN_DEERE_TOOLS)
 
-    def invoke_john_deere_chatbot(state):
+    def invoke_john_deere_chatbot(state: State) -> State:
         message = llm_with_john_deere_tools.invoke(state["messages"])
         return {"messages": [message]}
 
@@ -44,7 +58,7 @@ class JohnDeereAgentRunner:
         if callbacks:
             self.config["callbacks"] = callbacks
 
-    def process_query(self, conversation_messages: list) -> str:
+    def process_query(self, conversation_messages: list[BaseMessage]) -> str:
         """Process a query with full conversation history"""
         initial_state = {"messages": conversation_messages}
         result = self.graph.invoke(initial_state, self.config)
