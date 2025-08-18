@@ -21,6 +21,8 @@ AI_GATEWAY_REGISTRATION_ID = os.getenv("AI_GATEWAY_REGISTRATION_ID") or ""
 if AI_GATEWAY_REGISTRATION_ID == "":
     raise ValueError("AI_GATEWAY_REGISTRATION_ID is not set")
 
+os.environ['OPENAI_API_KEY'] = " " # Should login with gateway
+
 def get_john_deere_agent() -> CompiledStateGraph:
     """Create the John Deere agent"""
     llm_with_john_deere_tools = ChatOpenAI(
@@ -30,6 +32,7 @@ def get_john_deere_agent() -> CompiledStateGraph:
         default_headers={
             "deere-ai-gateway-registration-id": AI_GATEWAY_REGISTRATION_ID
         },
+        api_key=None,
     ).bind_tools(JOHN_DEERE_TOOLS)
 
     def invoke_john_deere_chatbot(state: State) -> State:
