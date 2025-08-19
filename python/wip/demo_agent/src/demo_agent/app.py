@@ -1,3 +1,4 @@
+import time
 import uuid
 
 import streamlit as st
@@ -7,8 +8,8 @@ from galileo import galileo_context
 from galileo.handlers.langchain import GalileoCallback
 from john_deere.agent import JohnDeereAgentRunner
 from langchain_core.messages import AIMessage, HumanMessage
-#from orchestrator import ModularMultiAgentOrchestrator
-#from supply_chain_agent import SupplyChainAgentRunner
+from orchestrator import ModularMultiAgentOrchestrator
+from supply_chain_agent import SupplyChainAgentRunner
 
 # Load environment variables with explicit path
 load_dotenv()
@@ -110,7 +111,7 @@ def show_multilingual_progress():
         else:
             status_text.text(f"🧩 {step}...")
 
-        # time.sleep(0.6) # may be causing issues
+        time.sleep(0.6)
 
     # Clear progress indicators
     progress_bar.empty()
@@ -128,7 +129,7 @@ def orchestrate_streamlit_and_get_user_input(
         session_id = str(uuid.uuid4())[:10]
         st.session_state.session_id = session_id
         try:
-            galileo_context.start_session(external_id=session_id)
+            galileo_context.start_session(name="", external_id=session_id)
         except Exception as e:
             st.error(f"Failed to start Galileo session: {str(e)}")
             st.stop()

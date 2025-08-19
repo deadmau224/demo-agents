@@ -6,6 +6,7 @@ from dataclasses import dataclass
 
 class BaseMessageType(enum.Enum):
     """Framework-agnostic message types."""
+
     AiMessage = 1
     HumanMessage = 2
     SystemMessage = 3
@@ -15,5 +16,6 @@ class BaseMessageType(enum.Enum):
 @dataclass
 class BaseMessage:
     """Framework agnostic message data."""
+
     message_type: BaseMessageType
     content: str

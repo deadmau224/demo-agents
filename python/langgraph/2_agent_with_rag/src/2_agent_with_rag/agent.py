@@ -12,7 +12,7 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.tools import BaseTool
 from langgraph.checkpoint.memory import MemorySaver
-from langgraph.graph import StateGraph, START
+from langgraph.graph import START, StateGraph
 from langgraph.graph.message import add_messages
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.prebuilt import ToolNode, tools_condition
@@ -23,6 +23,7 @@ warnings.filterwarnings("ignore", category=SyntaxWarning, module="langchain_tavi
 
 class AgentState(TypedDict):
     """Agent state with automatic message accumulation."""
+
     messages: Annotated[List, add_messages]
 
 
@@ -42,10 +43,7 @@ class Agent(BaseAgent):
     """
 
     def __init__(
-            self,
-            llm: BaseChatModel,
-            tools: List[BaseTool],
-            callbacks: List
+        self, llm: BaseChatModel, tools: List[BaseTool], callbacks: List
     ) -> None:
         """Initialize agent with LangGraph-managed state.
 
@@ -95,15 +93,18 @@ class Agent(BaseAgent):
             Agent's response as string.
         """
         result = self.graph.invoke(
-            {"messages": [HumanMessage(content=user_message)]},
-            config=self.config
+            {"messages": [HumanMessage(content=user_message)]}, config=self.config
         )
         return result["messages"][-1].content
 
     def get_message_history(self) -> List[BaseMessage]:
         """Get current conversation history."""
         current_state = self.graph.get_state(config=self.config)
-        messages = [m for m in current_state.values.get("messages", []) if isinstance(m, (HumanMessage, AIMessage))]
+        messages = [
+            m
+            for m in current_state.values.get("messages", [])
+            if isinstance(m, (HumanMessage, AIMessage))
+        ]
         return [LangGraphUtils.to_base_message(message) for message in messages]
 
     def _invoke_chatbot(self, state: AgentState) -> Dict[str, List]:
@@ -130,5 +131,5 @@ class Agent(BaseAgent):
     def _create_config(callbacks: List) -> dict:
         return {
             "configurable": {"thread_id": str(uuid.uuid4())[:8]},
-            "callbacks": callbacks
+            "callbacks": callbacks,
         }

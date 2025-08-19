@@ -57,7 +57,7 @@ def intent_classifier(state: State):
     try:
         classification = json.loads(response.content)
         next_agent = classification.get("primary_agent", "supply_chain_agent")
-    except Exception as e:
+    except Exception:
         # Fallback to supply chain agent
         next_agent = "supply_chain_agent"
 

@@ -13,6 +13,7 @@ class GalileoStreamlitApp:
     Agents from any framework can be wrapped into a
     BaseAgent to work with this streamlit app.
     """
+
     def __init__(self, agent: BaseAgent):
         self.agent = agent
 

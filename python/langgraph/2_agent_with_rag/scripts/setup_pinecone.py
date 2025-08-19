@@ -10,13 +10,10 @@ import asyncio
 import os
 
 from dotenv import load_dotenv
-
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-
 from langchain_community.document_loaders import DirectoryLoader, TextLoader
 from langchain_openai import OpenAIEmbeddings
 from langchain_pinecone import PineconeVectorStore
-
 from pinecone import Pinecone
 
 load_dotenv("src/2_agent_with_rag/.env")
@@ -27,7 +24,9 @@ PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 
 def load_documents(path):
     """Load all markdown documents from source-docs folder"""
-    loader = DirectoryLoader(path, glob="*.md", loader_cls=TextLoader, loader_kwargs={"encoding": "utf-8"})
+    loader = DirectoryLoader(
+        path, glob="*.md", loader_cls=TextLoader, loader_kwargs={"encoding": "utf-8"}
+    )
     documents = loader.load()
     return documents
 
@@ -86,7 +85,9 @@ def check_index_has_data(index) -> bool:
         return False
 
 
-def upload_to_pinecone(chunked_docs, index_name: str, force_upload: bool = False) -> PineconeVectorStore:
+def upload_to_pinecone(
+    chunked_docs, index_name: str, force_upload: bool = False
+) -> PineconeVectorStore:
     """Upload chunked documents to Pinecone"""
 
     # Check if index has data and we're not forcing upload
@@ -126,7 +127,7 @@ supply_chain_documents = [
     {
         "index_name": "supply-chain-information",
         "path": "source-docs/supply-chain",
-        "test_query": "supply chain"
+        "test_query": "supply chain",
     }
 ]
 
