@@ -18,16 +18,27 @@ CLIENT_ID = os.getenv("AI_GATEWAY_CLIENT_ID")
 CLIENT_SECRET = os.getenv("AI_GATEWAY_CLIENT_SECRET")
 AI_GATEWAY_REGISTRATION_ID = os.getenv("AI_GATEWAY_REGISTRATION_ID") or ""
 
+print(f"[CONFIG] ISSUER_URL: {ISSUER_URL}")
+print(f"[CONFIG] CLIENT_ID: {CLIENT_ID}")
+print(f"[CONFIG] AI_GATEWAY_REGISTRATION_ID: {AI_GATEWAY_REGISTRATION_ID}")
+
 access_token = auth_helper.get_access_token(ISSUER_URL, CLIENT_ID, CLIENT_SECRET)
 
-print(access_token)
+print(f"[AUTH] Final access_token: {access_token[:20] if access_token else 'None'}...")
 
 if AI_GATEWAY_REGISTRATION_ID == "":
     raise ValueError("AI_GATEWAY_REGISTRATION_ID is not set")
 
+if not access_token:
+    print("[ERROR] Failed to obtain access token. The John Deere agent will not be able to authenticate.")
+    print("[ERROR] Please check your .env file and ensure the OAuth credentials are correct.")
+
 
 def get_john_deere_agent() -> CompiledStateGraph:
     """Create the John Deere agent"""
+    if not access_token:
+        raise ValueError("Cannot create John Deere agent without valid access token. Please check your authentication configuration.")
+    
     llm_with_john_deere_tools = ChatOpenAI(
         model="gpt-4o-mini-2024-07-18",
         api_key=access_token,
@@ -57,18 +68,26 @@ def get_john_deere_agent() -> CompiledStateGraph:
 
 class JohnDeereAgentRunner:
     def __init__(self, callbacks=None):
-        self.graph = get_john_deere_agent()
-        self.config = {"configurable": {"thread_id": "john-deere-agent"}}
+        try:
+            self.graph = get_john_deere_agent()
+            self.config = {"configurable": {"thread_id": "john-deere-agent"}}
 
-        if callbacks:
-            self.config["callbacks"] = callbacks
+            if callbacks:
+                self.config["callbacks"] = callbacks
+        except Exception as e:
+            print(f"[ERROR] Failed to initialize John Deere agent: {e}")
+            raise
 
     def process_query(self, conversation_messages: list[BaseMessage]) -> str:
         """Process a query with full conversation history"""
-        initial_state = {"messages": conversation_messages}
-        result = self.graph.invoke(initial_state, self.config)
+        try:
+            initial_state = {"messages": conversation_messages}
+            result = self.graph.invoke(initial_state, self.config)
 
-        # Return the last message content
-        if result["messages"]:
-            return result["messages"][-1].content
-        return "No response generated"
+            # Return the last message content
+            if result["messages"]:
+                return result["messages"][-1].content
+            return "No response generated"
+        except Exception as e:
+            print(f"[ERROR] Error processing query: {e}")
+            return f"Error processing your request: {str(e)}"

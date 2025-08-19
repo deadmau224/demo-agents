@@ -15,21 +15,26 @@ def get_access_token(issuer_url, client_id, client_secret):
     """
     # Prepare the payload for the POST request
     payload = {
-        "grant_type": "client_credentials",
-        "client_id": client_id,
-        "client_secret": client_secret,
-        "scope": "mlops.deere.com/model-deployments.llm.region-restricted-invocations",
+        'grant_type': 'client_credentials',
+        'client_id': client_id,
+        'client_secret': client_secret,
+        'scope': 'mlops.deere.com/model-deployments.llm.region-restricted-invocations'
     }
-    headers = {"Content-type": "application/x-www-form-urlencoded"}
+    
+    headers = {'Content-type': 'application/x-www-form-urlencoded'}
+
     try:
-        issuer_url = f"{issuer_url}/v2/token"
+        issuer_url = f"{issuer_url}/v1/token"
         response = requests.post(issuer_url, data=payload, headers=headers)
         # Raise an HTTPError for bad responses (4xx and 5xx)
         response.raise_for_status()
+
         # Parse the JSON response to get the access token
         token_info = response.json()
-        bearer_token = token_info.get("access_token")
+        bearer_token = token_info.get('access_token')
         return bearer_token
+
     except Exception as err:
-        print(f"An error occurred: {err}")
+        print(f'An error occurred: {err}')
+
     return None
