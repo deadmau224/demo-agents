@@ -1,22 +1,22 @@
-from langchain_core.messages import HumanMessage
+from financial_agent_tools import (
+    analyze_financial_risk,
+    calculate_tco,
+    compare_supplier_costs,
+)
 from langchain_openai import ChatOpenAI
-from langgraph.graph import StateGraph, START
+from langgraph.graph import START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.prebuilt import ToolNode, tools_condition
-
-from financial_agent_tools import calculate_tco, analyze_financial_risk, compare_supplier_costs
 from shared_state import State
 
-FINANCIAL_TOOLS = [
-    calculate_tco,
-    analyze_financial_risk,
-    compare_supplier_costs
-]
+FINANCIAL_TOOLS = [calculate_tco, analyze_financial_risk, compare_supplier_costs]
 
 
 def get_financial_agent() -> CompiledStateGraph:
     """Create the financial analysis agent"""
-    llm_with_financial_tools = ChatOpenAI(model="gpt-4", name="Financial Agent").bind_tools(FINANCIAL_TOOLS)
+    llm_with_financial_tools = ChatOpenAI(
+        model="gpt-4", name="Financial Agent"
+    ).bind_tools(FINANCIAL_TOOLS)
 
     def invoke_financial_chatbot(state):
         message = llm_with_financial_tools.invoke(state["messages"])
@@ -43,7 +43,6 @@ class FinancialAgentRunner:
 
         if callbacks:
             self.config["callbacks"] = callbacks
-
 
     def process_query(self, conversation_messages: list) -> str:
         """Process a query with full conversation history"""

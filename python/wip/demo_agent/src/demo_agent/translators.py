@@ -1,6 +1,5 @@
-from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.messages import AIMessage, HumanMessage
 from langchain_openai import ChatOpenAI
-
 from shared_state import State
 
 
@@ -14,7 +13,7 @@ def spanish_translation(state: State):
     # If no English response stored, try to get the latest AI message
     if not english_response:
         for message in reversed(state["messages"]):
-            if hasattr(message, 'content') and hasattr(message, 'response_metadata'):
+            if hasattr(message, "content") and hasattr(message, "response_metadata"):
                 english_response = message.content
                 break
 
@@ -22,7 +21,9 @@ def spanish_translation(state: State):
         return {"spanish_response": "Error: No response to translate"}
 
     # Use LLM to translate to Spanish
-    translator_llm = ChatOpenAI(model="gpt-4.1", temperature=0, name="Spanish Translator")
+    translator_llm = ChatOpenAI(
+        model="gpt-4.1", temperature=0, name="Spanish Translator"
+    )
 
     translation_prompt = f"""
     Translate the following supply chain analysis response into Spanish. 
@@ -50,7 +51,7 @@ def hindi_translation(state: State):
     # If no English response stored, try to get the latest AI message
     if not english_response:
         for message in reversed(state["messages"]):
-            if hasattr(message, 'content') and hasattr(message, 'response_metadata'):
+            if hasattr(message, "content") and hasattr(message, "response_metadata"):
                 english_response = message.content
                 break
 
@@ -89,7 +90,7 @@ def multilingual_combination(state: State):
     # If English response is not in state, try to get from messages
     if not english_response:
         for message in reversed(state["messages"]):
-            if hasattr(message, 'content') and hasattr(message, 'response_metadata'):
+            if hasattr(message, "content") and hasattr(message, "response_metadata"):
                 english_response = message.content
                 break
 
@@ -117,5 +118,3 @@ def multilingual_combination(state: State):
     final_message = AIMessage(content=multilingual_response)
 
     return {"messages": [final_message]}
-
-

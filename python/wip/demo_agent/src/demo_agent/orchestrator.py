@@ -1,14 +1,13 @@
 import json
-from typing import Dict, Any
+from typing import Any, Dict
 
+from financial_agent import get_financial_agent
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
-from langgraph.graph import StateGraph, START, END
-
-from supply_chain_agent import get_supply_chain_agent
-from financial_agent import get_financial_agent
+from langgraph.graph import END, START, StateGraph
 from shared_state import State
-from translators import multilingual_combination, hindi_translation, spanish_translation
+from supply_chain_agent import get_supply_chain_agent
+from translators import hindi_translation, multilingual_combination, spanish_translation
 
 
 def intent_classifier(state: State):
@@ -19,7 +18,7 @@ def intent_classifier(state: State):
     # Get the latest user message
     user_query = ""
     for message in reversed(state["messages"]):
-        if hasattr(message, 'content') and message.content:
+        if hasattr(message, "content") and message.content:
             user_query = message.content
             break
 
@@ -58,7 +57,7 @@ def intent_classifier(state: State):
     try:
         classification = json.loads(response.content)
         next_agent = classification.get("primary_agent", "supply_chain_agent")
-    except:
+    except Exception as e:
         # Fallback to supply chain agent
         next_agent = "supply_chain_agent"
 
@@ -96,7 +95,7 @@ def financial_with_context(state: State):
     # Check if we have supply chain results to add as context
     supply_chain_result = None
     for message in reversed(state["messages"]):
-        if hasattr(message, 'content') and "supply chain" in message.content.lower():
+        if hasattr(message, "content") and "supply chain" in message.content.lower():
             supply_chain_result = message.content
             break
 
@@ -107,14 +106,16 @@ def financial_with_context(state: State):
 
     if supply_chain_result and state.get("next_agent") == "both_agents":
         # Add context message for financial agent
-        context_message = SystemMessage(content=f"""
+        context_message = SystemMessage(
+            content=f"""
         Context from Supply Chain Analysis:
         {supply_chain_result}
 
         Please provide financial analysis that complements the supply chain analysis above.
         Focus on cost implications, ROI calculations, and financial risks related to the supply chain recommendations.
         Consider the operational factors mentioned in the supply chain analysis.
-        """)
+        """
+        )
 
         # Add context to messages
         messages_with_context = state["messages"] + [context_message]
@@ -137,7 +138,7 @@ def synthesize_followup(state: State):
     # Get the original user query
     user_query = ""
     for message in state["messages"]:
-        if hasattr(message, 'content') and not hasattr(message, 'tool_calls'):
+        if hasattr(message, "content") and not hasattr(message, "tool_calls"):
             user_query = message.content
             break
 
@@ -146,7 +147,11 @@ def synthesize_followup(state: State):
     financial_result = ""
 
     # Find the last few AI messages (results from agents)
-    ai_messages = [msg for msg in state["messages"] if hasattr(msg, 'content') and hasattr(msg, 'response_metadata')]
+    ai_messages = [
+        msg
+        for msg in state["messages"]
+        if hasattr(msg, "content") and hasattr(msg, "response_metadata")
+    ]
 
     if len(ai_messages) >= 2:
         supply_chain_result = ai_messages[-2].content
@@ -228,8 +233,8 @@ def get_modular_multi_agent():
         {
             "supply_chain_agent": "supply_chain_agent",
             "financial_agent": "financial_agent",
-            "both_agents": "supply_chain_agent"  # Start with supply chain for collaboration
-        }
+            "both_agents": "supply_chain_agent",  # Start with supply chain for collaboration
+        },
     )
 
     # For collaborative workflows: supply_chain -> financial -> synthesis
@@ -244,8 +249,8 @@ def get_modular_multi_agent():
         after_supply_chain,
         {
             "financial_agent": "financial_agent",
-            "synthesize_followup": "synthesize_followup"
-        }
+            "synthesize_followup": "synthesize_followup",
+        },
     )
 
     # Financial agent always goes to synthesis
@@ -298,6 +303,9 @@ class ModularMultiAgentOrchestrator:
         return {
             "primary_agent": next_agent,
             "requires_collaboration": next_agent == "both_agents",
-            "execution_order": ["supply_chain", "financial"] if next_agent == "both_agents" else [
-                next_agent.replace("_agent", "")]
+            "execution_order": (
+                ["supply_chain", "financial"]
+                if next_agent == "both_agents"
+                else [next_agent.replace("_agent", "")]
+            ),
         }
