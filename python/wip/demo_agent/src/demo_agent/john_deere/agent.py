@@ -1,4 +1,4 @@
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 from langchain_tavily import TavilySearch
 from langgraph.graph import StateGraph, START
@@ -14,12 +14,20 @@ JOHN_DEERE_TOOLS = [
 ]
 
 
-def get_john_deere_agent() -> CompiledStateGraph:
+def get_john_deere_agent(system_prompt: str = None) -> CompiledStateGraph:
     """Create the John Deere agent"""
     llm_with_john_deere_tools = ChatOpenAI(model="gpt-4.1", name="John Deere Agent").bind_tools(JOHN_DEERE_TOOLS)
 
     def invoke_john_deere_chatbot(state):
-        message = llm_with_john_deere_tools.invoke(state["messages"])
+        # Only add system message if one is provided
+        if system_prompt:
+            system_message = SystemMessage(content=system_prompt)
+            messages = [system_message] + state["messages"]
+        else:
+            # No system prompt - just use the conversation messages as-is
+            messages = state["messages"]
+        
+        message = llm_with_john_deere_tools.invoke(messages)
         return {"messages": [message]}
 
     # Build the graph
@@ -37,8 +45,8 @@ def get_john_deere_agent() -> CompiledStateGraph:
 
 
 class JohnDeereAgentRunner:
-    def __init__(self, callbacks=None):
-        self.graph = get_john_deere_agent()
+    def __init__(self, callbacks=None, system_prompt: str = None):
+        self.graph = get_john_deere_agent(system_prompt=system_prompt)
         self.config = {"configurable": {"thread_id": "john-deere-agent"}}
 
         if callbacks:
