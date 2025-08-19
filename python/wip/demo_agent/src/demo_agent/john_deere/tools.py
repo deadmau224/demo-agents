@@ -1,15 +1,16 @@
 import datetime
 
+from knowledge_bases.john_deere import JOHN_DEERE_SALES_KNOWLEDGE
 from langchain_core.tools import tool
 from rag_tool import get_rag_system
-from knowledge_bases.john_deere import JOHN_DEERE_SALES_KNOWLEDGE
+
 
 @tool
 def search_john_deere_sales_manual(query: str) -> str:
     """
-    Search the John Deere sales manual and product knowledge base for information about 
+    Search the John Deere sales manual and product knowledge base for information about
     equipment specifications, pricing, features, warranty, service programs, and sales processes.
-    
+
     This tool provides access to comprehensive information about:
     - Tractor models and specifications (1 Series through 9R Series)
     - Combine harvesters (S700, X9, T-Series)
@@ -30,14 +31,18 @@ def search_john_deere_sales_manual(query: str) -> str:
         knowledge_content=JOHN_DEERE_SALES_KNOWLEDGE,
         index_name="john-deere-sales-rag",
         namespace="john-deere-sales",
-        description="John Deere Sales"
+        description="John Deere Sales",
     )
     return rag_instance.search(query)
 
 
 @tool
-def generate_john_deere_quote(customer_name: str, model: str, 
-                             optional_features: str = "", financing_term: int = 60) -> str:
+def generate_john_deere_quote(
+    customer_name: str,
+    model: str,
+    optional_features: str = "",
+    financing_term: int = 60,
+) -> str:
     """
     Generate a simplified quote for John Deere equipment.
 
@@ -58,7 +63,7 @@ def generate_john_deere_quote(customer_name: str, model: str,
         "6155R": {"price": 135000, "type": "Row Crop Tractor"},
         "S760": {"price": 502000, "type": "Combine Harvester"},
         "S780": {"price": 545000, "type": "Combine Harvester"},
-        "DB60": {"price": 85000, "type": "Planter"}
+        "DB60": {"price": 85000, "type": "Planter"},
     }
 
     model_upper = model.upper()
@@ -72,21 +77,28 @@ def generate_john_deere_quote(customer_name: str, model: str,
     # Simple options calculation (10% of base price per feature)
     features_list = [f.strip() for f in optional_features.split(",") if f.strip()]
     options_cost = len(features_list) * (base_price * 0.1)
-    
+
     # Calculate totals
     subtotal = base_price + options_cost
     total_price = subtotal * 1.08  # Include taxes and fees
 
     # Simple financing calculation
     if financing_term > 0:
-        monthly_payment = total_price * (0.05/12) * (1 + 0.05/12)**financing_term / ((1 + 0.05/12)**financing_term - 1)
+        monthly_payment = (
+            total_price
+            * (0.05 / 12)
+            * (1 + 0.05 / 12) ** financing_term
+            / ((1 + 0.05 / 12) ** financing_term - 1)
+        )
     else:
         monthly_payment = 0
 
     # Generate simplified quote
-    quote_date = datetime.datetime.now().strftime('%B %d, %Y')
-    quote_number = f"JD{datetime.datetime.now().strftime('%Y%m%d')}{hash(customer_name) % 100:02d}"
-    
+    quote_date = datetime.datetime.now().strftime("%B %d, %Y")
+    quote_number = (
+        f"JD{datetime.datetime.now().strftime('%Y%m%d')}{hash(customer_name) % 100:02d}"
+    )
+
     quote = f"""JOHN DEERE EQUIPMENT QUOTE
 Quote #{quote_number} | Date: {quote_date}
 Customer: {customer_name}
@@ -113,4 +125,4 @@ Quote valid for 30 days. Contact your dealer for availability.
     return quote
 
 
-__all__ = ['search_john_deere_sales_manual', 'generate_john_deere_quote']
+__all__ = ["search_john_deere_sales_manual", "generate_john_deere_quote"]

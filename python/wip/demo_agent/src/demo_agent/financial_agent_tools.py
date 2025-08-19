@@ -4,9 +4,14 @@ from langchain_core.tools import tool
 
 
 @tool
-def calculate_tco(supplier_id: str, annual_volume: float, unit_price: float,
-                  transportation_cost: float = 0, quality_cost: float = 0,
-                  risk_cost: float = 0) -> str:
+def calculate_tco(
+    supplier_id: str,
+    annual_volume: float,
+    unit_price: float,
+    transportation_cost: float = 0,
+    quality_cost: float = 0,
+    risk_cost: float = 0,
+) -> str:
     """
     Calculate Total Cost of Ownership for a supplier.
 
@@ -27,13 +32,15 @@ def calculate_tco(supplier_id: str, annual_volume: float, unit_price: float,
     report = f"Total Cost of Ownership Analysis for Supplier {supplier_id}\n"
     report += f"Analysis Date: {datetime.datetime.now().strftime('%Y-%m-%d')}\n\n"
 
-    report += f"Cost Breakdown:\n"
+    report += "Cost Breakdown:\n"
     report += f"- Base Purchase Cost: ${base_cost:,.2f} ({base_cost / total_cost * 100:.1f}%)\n"
     report += f"- Transportation Cost: ${transportation_cost:,.2f} ({transportation_cost / total_cost * 100:.1f}%)\n"
     report += f"- Quality Cost: ${quality_cost:,.2f} ({quality_cost / total_cost * 100:.1f}%)\n"
     report += f"- Risk Cost: ${risk_cost:,.2f} ({risk_cost / total_cost * 100:.1f}%)\n"
     report += f"\nTotal Annual Cost: ${total_cost:,.2f}\n"
-    report += f"Cost per Unit (including all factors): ${total_cost / annual_volume:.2f}\n"
+    report += (
+        f"Cost per Unit (including all factors): ${total_cost / annual_volume:.2f}\n"
+    )
 
     return report
 
@@ -58,7 +65,7 @@ def analyze_financial_risk(supplier_id: str) -> str:
             "current_ratio": 2.1,
             "revenue_growth": 0.08,
             "profit_margin": 0.12,
-            "days_sales_outstanding": 45
+            "days_sales_outstanding": 45,
         },
         "SUP002": {
             "name": "Global Parts Inc.",
@@ -67,8 +74,8 @@ def analyze_financial_risk(supplier_id: str) -> str:
             "current_ratio": 1.3,
             "revenue_growth": -0.02,
             "profit_margin": 0.05,
-            "days_sales_outstanding": 62
-        }
+            "days_sales_outstanding": 62,
+        },
     }
 
     if supplier_id not in financial_data:
@@ -80,10 +87,10 @@ def analyze_financial_risk(supplier_id: str) -> str:
     report += f"Analysis Date: {datetime.datetime.now().strftime('%Y-%m-%d')}\n\n"
 
     # Credit assessment
-    credit_rating = supplier['credit_rating']
-    if credit_rating.startswith('A'):
+    credit_rating = supplier["credit_rating"]
+    if credit_rating.startswith("A"):
         credit_risk = "Low"
-    elif credit_rating.startswith('BB'):
+    elif credit_rating.startswith("BB"):
         credit_risk = "Medium"
     else:
         credit_risk = "High"
@@ -91,7 +98,7 @@ def analyze_financial_risk(supplier_id: str) -> str:
     report += f"Credit Rating: {credit_rating} ({credit_risk} Risk)\n\n"
 
     # Liquidity analysis
-    current_ratio = supplier['current_ratio']
+    current_ratio = supplier["current_ratio"]
     if current_ratio >= 2.0:
         liquidity_health = "Strong"
     elif current_ratio >= 1.5:
@@ -99,12 +106,12 @@ def analyze_financial_risk(supplier_id: str) -> str:
     else:
         liquidity_health = "Weak"
 
-    report += f"Liquidity Analysis:\n"
+    report += "Liquidity Analysis:\n"
     report += f"- Current Ratio: {current_ratio:.2f} ({liquidity_health})\n"
     report += f"- Days Sales Outstanding: {supplier['days_sales_outstanding']} days\n\n"
 
     # Profitability and growth
-    report += f"Financial Performance:\n"
+    report += "Financial Performance:\n"
     report += f"- Revenue Growth: {supplier['revenue_growth'] * 100:+.1f}%\n"
     report += f"- Profit Margin: {supplier['profit_margin'] * 100:.1f}%\n"
     report += f"- Debt-to-Equity Ratio: {supplier['debt_to_equity']:.2f}\n\n"
@@ -115,9 +122,9 @@ def analyze_financial_risk(supplier_id: str) -> str:
         risk_factors.append("Poor credit rating")
     if current_ratio < 1.5:
         risk_factors.append("Weak liquidity position")
-    if supplier['revenue_growth'] < 0:
+    if supplier["revenue_growth"] < 0:
         risk_factors.append("Declining revenue")
-    if supplier['debt_to_equity'] > 0.6:
+    if supplier["debt_to_equity"] > 0.6:
         risk_factors.append("High leverage")
 
     if risk_factors:

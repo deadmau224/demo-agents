@@ -1,17 +1,14 @@
-import os
-import time
 import uuid
 
 import streamlit as st
 from dotenv import load_dotenv
+from financial_agent import FinancialAgentRunner
 from galileo import galileo_context
 from galileo.handlers.langchain import GalileoCallback
-from langchain_core.messages import AIMessage, HumanMessage
-
-from financial_agent import FinancialAgentRunner
 from john_deere.agent import JohnDeereAgentRunner
-from orchestrator import ModularMultiAgentOrchestrator
-from supply_chain_agent import SupplyChainAgentRunner
+from langchain_core.messages import AIMessage, HumanMessage
+#from orchestrator import ModularMultiAgentOrchestrator
+#from supply_chain_agent import SupplyChainAgentRunner
 
 # Load environment variables with explicit path
 load_dotenv()
@@ -64,18 +61,24 @@ def show_example_queries(query_1: str, query_2: str):
 def display_workflow_info(routing_decision):
     """Display information about the workflow being executed"""
     if routing_decision.get("requires_collaboration", False):
-        st.info(f"""
+        st.info(
+            f"""
         🔄 **Multi-Agent Workflow with Translation**
 
         **Flow:** Intent Classifier → {' → '.join(routing_decision['execution_order'][:-1])} → Translation Fork → Final Response
-        """)
+        """
+        )
     else:
-        agent_name = routing_decision.get("primary_agent", "unknown").replace("_agent", "")
-        st.info(f"""
+        agent_name = routing_decision.get("primary_agent", "unknown").replace(
+            "_agent", ""
+        )
+        st.info(
+            f"""
         🎯 **Single Agent Workflow with Translation**
 
         **Flow:** Intent Classifier → {agent_name.title()} Agent → Translation Fork → Multilingual Response
-        """)
+        """
+        )
 
 
 def get_welcome_message():
@@ -95,7 +98,7 @@ def show_multilingual_progress():
         "Synthesis",
         "Spanish Translation",
         "Hindi Translation",
-        "Multilingual Combination"
+        "Multilingual Combination",
     ]
 
     for i, step in enumerate(steps):
@@ -107,7 +110,7 @@ def show_multilingual_progress():
         else:
             status_text.text(f"🧩 {step}...")
 
-        time.sleep(0.6)
+        # time.sleep(0.6) # may be causing issues
 
     # Clear progress indicators
     progress_bar.empty()
@@ -115,9 +118,7 @@ def show_multilingual_progress():
 
 
 def orchestrate_streamlit_and_get_user_input(
-    agent_title: str,
-    example_query_1: str,
-    example_query_2: str
+    agent_title: str, example_query_1: str, example_query_2: str
 ):
     # App title and description
     st.title(agent_title)
@@ -133,10 +134,9 @@ def orchestrate_streamlit_and_get_user_input(
             st.stop()
         # Add welcome message
         welcome_message = AIMessage(content="Welcome!")
-        st.session_state.messages.append({
-            "message": welcome_message,
-            "agent": "system"
-        })
+        st.session_state.messages.append(
+            {"message": welcome_message, "agent": "system"}
+        )
 
     # Show example queries
     example_query = show_example_queries(example_query_1, example_query_2)
@@ -152,14 +152,11 @@ def orchestrate_streamlit_and_get_user_input(
     return user_input
 
 
-def process_input_for_simple_app(user_input: str|None):
+def process_input_for_simple_app(user_input: str | None):
     if user_input:
         # Add user message to chat history
         user_message = HumanMessage(content=user_input)
-        st.session_state.messages.append({
-            "message": user_message,
-            "agent": "user"
-        })
+        st.session_state.messages.append({"message": user_message, "agent": "user"})
 
         # Display the user message immediately
         with st.chat_message("user"):
@@ -172,16 +169,15 @@ def process_input_for_simple_app(user_input: str|None):
                 for msg_data in st.session_state.messages:
                     if isinstance(msg_data, dict) and "message" in msg_data:
                         conversation_messages.append(msg_data["message"])
-                
+
                 # Get the actual response from modular orchestrator with full conversation
                 response = st.session_state.runner.process_query(conversation_messages)
 
                 # Create and display AI message
                 ai_message = AIMessage(content=response)
-                st.session_state.messages.append({
-                    "message": ai_message,
-                    "agent": "assistant"
-                })
+                st.session_state.messages.append(
+                    {"message": ai_message, "agent": "assistant"}
+                )
 
                 # Display response
                 st.write(response)
@@ -195,47 +191,53 @@ def multi_agent_app():
     user_input = orchestrate_streamlit_and_get_user_input(
         "Multi Agent System",
         "Should we switch from supplier SUP001 to SUP002 for our semiconductor components?",
-        "Check compliance status for supplier SUP001"
+        "Check compliance status for supplier SUP001",
     )
     if "orchestrator" not in st.session_state:
-        st.session_state.orchestrator = ModularMultiAgentOrchestrator(callbacks=[GalileoCallback()])
+        st.session_state.orchestrator = ModularMultiAgentOrchestrator(
+            callbacks=[GalileoCallback()]
+        )
 
     # Process user input
     if user_input:
         # Log user query
         print(f"[USER QUERY RECEIVED] {user_input}")
-        
+
         # Add user message to chat history
         user_message = HumanMessage(content=user_input)
-        st.session_state.messages.append({
-            "message": user_message,
-            "agent": "user"
-        })
+        st.session_state.messages.append({"message": user_message, "agent": "user"})
 
         # Display the user message immediately
         with st.chat_message("user"):
             st.write(user_input)
 
         # Get routing decision and display workflow info
-        print(f"[ROUTING] Getting routing decision...")
-        routing_decision = st.session_state.orchestrator.get_routing_decision(user_input)
+        print("[ROUTING] Getting routing decision...")
+        routing_decision = st.session_state.orchestrator.get_routing_decision(
+            user_input
+        )
         print(f"[ROUTING] Decision: {routing_decision}")
         # Get response from modular orchestrator
         with st.chat_message("assistant"):
             with st.spinner("Processing..."):
 
                 # Get the actual response from modular orchestrator
-                print(f"[PROCESSING] Starting query processing...")
+                print("[PROCESSING] Starting query processing...")
                 response = st.session_state.orchestrator.process_query(user_input)
-                print(f"[PROCESSING] Query processing completed. Response length: {len(response) if response else 0}")
+                print(
+                    f"[PROCESSING] Query processing completed. Response length: {len(response) if response else 0}"
+                )
 
                 # Create and display AI message
                 ai_message = AIMessage(content=response)
-                agent_type = "synthesized" if routing_decision.get("requires_collaboration") else "single_agent"
-                st.session_state.messages.append({
-                    "message": ai_message,
-                    "agent": agent_type
-                })
+                agent_type = (
+                    "synthesized"
+                    if routing_decision.get("requires_collaboration")
+                    else "single_agent"
+                )
+                st.session_state.messages.append(
+                    {"message": ai_message, "agent": agent_type}
+                )
 
                 # Display response
                 st.write(response)
@@ -248,7 +250,7 @@ def financial_agent_app():
     user_input = orchestrate_streamlit_and_get_user_input(
         "Financial Agent",
         "What are the financial risks of using supplier SUP001 vs SUP002 in SouthEast Asia?",
-        "When comparing supplier SUP001 vs SUP002, how should I factor in the Total Cost of Ownership?"
+        "When comparing supplier SUP001 vs SUP002, how should I factor in the Total Cost of Ownership?",
     )
     if "runner" not in st.session_state:
         st.session_state.runner = FinancialAgentRunner(callbacks=[GalileoCallback()])
@@ -259,7 +261,7 @@ def supply_chain_agent_app():
     user_input = orchestrate_streamlit_and_get_user_input(
         "Supply Chain Agent",
         "Check compliance status for supplier SUP001",
-        "What are the fundamentals of Supply Chain Management?"
+        "What are the fundamentals of Supply Chain Management?",
     )
     if "runner" not in st.session_state:
         st.session_state.runner = SupplyChainAgentRunner(callbacks=[GalileoCallback()])
@@ -270,7 +272,7 @@ def john_deere_agent_app():
     user_input = orchestrate_streamlit_and_get_user_input(
         "John Deere Agent",
         "What are the specifications for the 6155R tractor?",
-        "Generate a quote for John Smith for a S780 combine with AutoTrac GPS"
+        "Generate a quote for John Smith for a S780 combine with AutoTrac GPS",
     )
     if "runner" not in st.session_state:
         st.session_state.runner = JohnDeereAgentRunner(callbacks=[GalileoCallback()])

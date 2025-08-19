@@ -1,18 +1,27 @@
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 from langchain_tavily import TavilySearch
-from langgraph.graph import StateGraph, START
+from langgraph.graph import START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.prebuilt import ToolNode, tools_condition
-from langchain_core.messages import HumanMessage
-
-from supply_chain_tools import rag_search, check_supplier_compliance, assess_disruption_risk
 from shared_state import State
+from supply_chain_tools import (
+    assess_disruption_risk,
+    check_supplier_compliance,
+    rag_search,
+)
 
 load_dotenv()
 
-TOOLS = [TavilySearch(max_results=2), assess_disruption_risk, check_supplier_compliance, rag_search]
-llm_with_tools = ChatOpenAI(model="gpt-4.1", name="Supply Chain Agent").bind_tools(TOOLS)
+TOOLS = [
+    TavilySearch(max_results=2),
+    assess_disruption_risk,
+    check_supplier_compliance,
+    rag_search,
+]
+llm_with_tools = ChatOpenAI(model="gpt-4.1", name="Supply Chain Agent").bind_tools(
+    TOOLS
+)
 
 
 def invoke_chatbot(state):
@@ -30,10 +39,7 @@ def get_supply_chain_agent() -> CompiledStateGraph:
     graph_builder.add_node("tools", tool_node)
 
     # Set up graph edges
-    graph_builder.add_conditional_edges(
-        "chatbot",
-        tools_condition
-    )
+    graph_builder.add_conditional_edges("chatbot", tools_condition)
     graph_builder.add_edge("tools", "chatbot")
     graph_builder.add_edge(START, "chatbot")
     return graph_builder.compile()
