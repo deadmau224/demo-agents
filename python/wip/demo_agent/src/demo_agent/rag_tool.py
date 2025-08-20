@@ -82,7 +82,7 @@ class RAGSystem:
                         "Cannot initialize RAG system without valid access token. Please check your authentication configuration."
                     )
                 self.embeddings = OpenAIEmbeddings(
-                    model="text-embedding-3-small",
+                    model="text-embedding-3-large",
                     api_key=access_token,
                     base_url="https://ai-gateway.deere.com/openai",
                     default_headers={
@@ -90,10 +90,19 @@ class RAGSystem:
                     },
                 )
             else:
-                # Use direct OpenAI API
+                # Use direct OpenAI API - also use large model for consistency
                 self.embeddings = OpenAIEmbeddings(
-                    model="text-embedding-3-small"
+                    model="text-embedding-3-large"
                 )
+            
+            # Debug: Check embeddings dimensions
+            print(f"[DEBUG] Embeddings object: {self.embeddings}")
+            print(f"[DEBUG] Embeddings dimensions: {getattr(self.embeddings, 'dimensions', 'Not available')}")
+            
+            # Get the dimension - text-embedding-3-large has 3072 dimensions
+            # Since the embeddings object doesn't provide dimensions, hardcode it
+            embedding_dimension = 3072  # text-embedding-3-large dimension
+            print(f"[DEBUG] Using embedding dimension: {embedding_dimension}")
 
             # Initialize Pinecone
             pc = Pinecone(api_key=os.environ.get("PINECONE_API_KEY"))
@@ -101,16 +110,50 @@ class RAGSystem:
             region = os.environ.get("PINECONE_REGION", "us-east-1")
             spec = ServerlessSpec(cloud=cloud, region=region)
 
-            # Create or use existing index (dimension for text-embedding-3-small is 1536)
-            if not pc.has_index(self.index_name):
+            # Check if index exists and has correct dimension
+            index_exists = pc.has_index(self.index_name)
+            should_recreate_index = False
+            
+            if index_exists:
+                # Check if existing index has correct dimension
+                try:
+                    existing_index = pc.Index(self.index_name)
+                    index_description = pc.describe_index(self.index_name)
+                    existing_dimension = index_description.dimension
+                    expected_dimension = embedding_dimension
+                    
+                    print(f"[INDEX] Existing index dimension: {existing_dimension}")
+                    print(f"[INDEX] Expected dimension: {expected_dimension}")
+                    
+                    if existing_dimension != expected_dimension:
+                        print(f"[INDEX] Dimension mismatch! Deleting old index to recreate with correct dimension.")
+                        pc.delete_index(self.index_name)
+                        # Wait a bit for the deletion to complete
+                        import time
+                        time.sleep(2)
+                        should_recreate_index = True
+                        index_exists = False
+                except Exception as e:
+                    print(f"[INDEX] Error checking index dimension: {e}")
+                    print(f"[INDEX] Will try to recreate index to be safe.")
+                    try:
+                        pc.delete_index(self.index_name)
+                        time.sleep(2)
+                    except:
+                        pass
+                    should_recreate_index = True
+                    index_exists = False
+
+            # Create or use existing index
+            if not index_exists or should_recreate_index:
                 pc.create_index(
                     name=self.index_name,
-                    dimension=self.embeddings.dimension,  # text-embedding-3-small dimension
+                    dimension=embedding_dimension,  # text-embedding-3-large dimension (3072)
                     metric="cosine",
                     spec=spec,
                 )
                 print(
-                    f":hourglass_flowing_sand: Creating Pinecone index '{self.index_name}'... Please wait for it to be ready."
+                    f":hourglass_flowing_sand: Creating Pinecone index '{self.index_name}' with dimension {embedding_dimension}... Please wait for it to be ready."
                 )
                 # Try to get the index with a retry mechanism instead of blocking sleep
                 max_retries = 3
@@ -134,6 +177,7 @@ class RAGSystem:
             else:
                 # Get the index reference
                 self.index = pc.Index(self.index_name)
+                print(f"[INDEX] Using existing index '{self.index_name}' with correct dimension")
 
             # Always load documents (simpler approach like old code)
             self._load_documents()
