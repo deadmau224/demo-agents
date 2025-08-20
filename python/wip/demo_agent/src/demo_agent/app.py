@@ -9,7 +9,7 @@ from galileo.handlers.langchain import GalileoCallback
 from john_deere.agent import JohnDeereAgentRunner
 from langchain_core.messages import AIMessage, HumanMessage
 from orchestrator import ModularMultiAgentOrchestrator
-from supply_chain_agent import SupplyChainAgentRunner
+#from supply_chain_agent import SupplyChainAgentRunner
 
 # Load environment variables with explicit path
 load_dotenv()
