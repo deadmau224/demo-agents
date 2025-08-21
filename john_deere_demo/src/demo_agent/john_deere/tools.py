@@ -1,4 +1,12 @@
-"""John Deere agent tools for sales and quoting functionality."""
+"""John Deere agent tools for sales and quoting functionality.
+
+Includes:
+- `search_john_deere_sales_manual`: Retrieval-Augmented Generation (RAG)
+  search over an embedded sales manual using ChromaDB for local vector
+  storage.
+- `generate_john_deere_quote`: A simplified quote generator that applies
+  base prices, a flat per-feature uplift, tax/fees, and basic financing.
+"""
 
 import datetime
 from typing import List
@@ -16,19 +24,27 @@ from ..constants import (
 from ..rag_tool import get_rag_system
 from ..knowledge_bases.john_deere import JOHN_DEERE_SALES_KNOWLEDGE
 from ..config import config
+from ..utils.logging import logger
 
 
 @tool
 def search_john_deere_sales_manual(query: str) -> str:
-    """
-    Search the John Deere sales manual using RAG.
+    """Search the John Deere sales manual using RAG backed by ChromaDB.
 
     Args:
-        query: The search query
+        query: Natural-language question to search the knowledge base.
 
     Returns:
-        Relevant information from the John Deere sales manual and product database
+        A synthesized answer using retrieved context from the embedded
+        sales manual content.
     """
+    logger.info("[TOOLS] search_john_deere_sales_manual: start")
+    logger.info("[TOOLS] RAG query: %s", query)
+    logger.info(
+        "[TOOLS] Using ChromaDB collection '%s' at '%s'",
+        config.chromadb.collection_name,
+        config.chromadb.persist_directory,
+    )
     # Get RAG system for sales manual search
     rag_system = get_rag_system(
         knowledge_content=JOHN_DEERE_SALES_KNOWLEDGE,
@@ -36,7 +52,11 @@ def search_john_deere_sales_manual(query: str) -> str:
         persist_directory=config.chromadb.persist_directory,
         description="John Deere Sales Manual",
     )
-    return rag_system.search(query)
+    response = rag_system.search(query)
+    preview = (response[:200] + "...") if len(response) > 200 else response
+    logger.info("[TOOLS] search_john_deere_sales_manual: completed")
+    logger.info("[TOOLS] RAG response (preview): %s", preview)
+    return response
 
 
 @tool
@@ -46,39 +66,60 @@ def generate_john_deere_quote(
     optional_features: str = "",
     financing_term: int = DEFAULT_FINANCING_TERM,
 ) -> str:
-    """
-    Generate a simplified quote for John Deere equipment.
+    """Generate a simplified quote for John Deere equipment.
+
+    Pricing model:
+    - Base price from `EQUIPMENT_PRICING`.
+    - Each optional feature adds 10% of the base price (simple uplift).
+    - Subtotal is multiplied by `TAX_AND_FEES_MULTIPLIER`.
+    - Financing uses a standard amortization formula with
+      `DEFAULT_INTEREST_RATE` and provided `financing_term`.
 
     Args:
-        customer_name: Name of the customer requesting the quote
-        model: Specific model number (e.g., 1025R, 5075E, S760)
-        optional_features: Comma-separated list of optional features
-        financing_term: Financing term in months (default: 60 months)
+        customer_name: Customer name.
+        model: Model number (e.g., 6155R, 6120M, 5075E).
+        optional_features: Comma-separated list of features.
+        financing_term: Financing term in months.
 
     Returns:
-        Equipment quote with pricing and financing information
+        A formatted quote string including pricing and financing details.
     """
+    logger.info("[TOOLS] generate_john_deere_quote: start")
+    logger.info(
+        "[TOOLS] Inputs -> customer_name='%s', model='%s', optional_features='%s', financing_term=%s",
+        customer_name,
+        model,
+        optional_features,
+        financing_term,
+    )
     model_upper = model.upper()
     if model_upper not in EQUIPMENT_PRICING:
         available_models = ", ".join(EQUIPMENT_PRICING.keys())
+        logger.info("[TOOLS] Unknown model '%s'. Available: %s", model_upper, available_models)
         return f"Model {model} not found. Available models: {available_models}"
 
     base_price = get_equipment_price(model_upper)
-    equipment_type = get_equipment_type(model_upper)
+    logger.info("[TOOLS] Base price for %s: %.2f", model_upper, base_price)
 
     # Calculate options cost
     features_list = _parse_optional_features(optional_features)
+    logger.info("[TOOLS] Parsed features: %s", features_list)
     options_cost = _calculate_options_cost(features_list, base_price)
+    logger.info("[TOOLS] Options cost: %.2f", options_cost)
 
     # Calculate totals
     subtotal = base_price + options_cost
     total_price = subtotal * TAX_AND_FEES_MULTIPLIER
+    logger.info("[TOOLS] Subtotal: %.2f, Tax/Fees multiplier: %.2f, Total: %.2f", subtotal, TAX_AND_FEES_MULTIPLIER, total_price)
 
     # Calculate financing
     monthly_payment = _calculate_monthly_payment(total_price, financing_term)
+    logger.info("[TOOLS] Financing -> term: %s months, monthly payment: %.2f", financing_term, monthly_payment)
 
     # Generate quote
-    return _format_quote(
+    quote_number = _generate_quote_number(customer_name)
+    logger.info("[TOOLS] Generated quote number: %s", quote_number)
+    result = _format_quote(
         customer_name=customer_name,
         equipment_model=model_upper,
         base_price=base_price,
@@ -87,8 +128,10 @@ def generate_john_deere_quote(
         tax_and_fees=total_price - subtotal,
         total=total_price,
         monthly_payment=monthly_payment,
-        quote_number=_generate_quote_number(customer_name),
+        quote_number=quote_number,
     )
+    logger.info("[TOOLS] generate_john_deere_quote: completed")
+    return result
 
 
 def _parse_optional_features(optional_features: str) -> List[str]:
@@ -101,7 +144,10 @@ def _parse_optional_features(optional_features: str) -> List[str]:
 
 
 def _calculate_options_cost(features_list: list[str], base_price: float) -> float:
-    """Calculate the cost of optional features."""
+    """Calculate the cost of optional features.
+
+    Applies a flat 10% of base price per feature.
+    """
     features_count = len(features_list)
     return base_price * 0.1 * features_count
 
@@ -133,7 +179,11 @@ def _format_quote(
     monthly_payment: float,
     quote_number: str,
 ) -> str:
-    """Format the quote into a readable string."""
+    """Format the quote into a readable string.
+
+    Uses `DEFAULT_FINANCING_TERM` and `DEFAULT_INTEREST_RATE` for the
+    financing display line.
+    """
     quote_date = datetime.datetime.now().strftime("%B %d, %Y")
     
     # Get equipment type for display

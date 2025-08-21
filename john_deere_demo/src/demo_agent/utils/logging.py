@@ -5,11 +5,12 @@ import sys
 from typing import Optional
 
 from ..constants import (
-    DEFAULT_AI_GATEWAY_MODEL,
-    DEFAULT_OPENAI_MODEL,
-    DEFAULT_CHROMADB_COLLECTION,
-    DEFAULT_CHROMADB_PERSIST_DIR,
+    ERROR_AI_GATEWAY_TOKEN,
+    ERROR_AI_GATEWAY_CONFIG,
+    ERROR_AGENT_INITIALIZATION,
+    ERROR_QUERY_PROCESSING,
 )
+
 
 
 def setup_logging(

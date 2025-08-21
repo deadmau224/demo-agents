@@ -1,4 +1,8 @@
-"""Streamlit web application for the John Deere Demo Agent."""
+"""Streamlit web application for the John Deere Demo Agent.
+
+Bootstraps a Galileo session for tracing/metrics, renders a chat UI, and
+routes user messages to `JohnDeereAgentRunner` while preserving history.
+"""
 
 import importlib
 import time
@@ -9,10 +13,18 @@ import streamlit as st
 from galileo import galileo_context
 from galileo.handlers.langchain import GalileoCallback
 from langchain_core.messages import AIMessage, HumanMessage
+from dotenv import load_dotenv
+
+# Load environment variables early so downstream imports see them
+load_dotenv()
 
 
 def _import_constants_and_agent():
-    """Import constants and agent with fallback for script execution."""
+    """Import constants and agent with fallback for script execution.
+
+    Supports both package execution (`uv run demo-agent`) and direct script
+    execution by attempting relative imports and then absolute fallbacks.
+    """
     try:
         # Try package imports first
         constants = importlib.import_module(".constants", package="demo_agent")
@@ -49,9 +61,11 @@ class StreamlitApp:
     def _setup_galileo_session(self) -> None:
         """Set up Galileo session for tracking."""
         try:
+            st.write("Initializing session...")
             galileo_context.start_session(
                 name="", external_id=st.session_state.session_id
             )
+            st.write("Session initialized: ", st.session_state.session_id)
             # Add welcome message
             welcome_message = AIMessage(content=constants.SUCCESS_WELCOME)
             st.session_state.messages.append(
@@ -161,11 +175,15 @@ class StreamlitApp:
     def _generate_and_display_response(self, user_input: str) -> None:
         """Generate AI response and display it."""
         try:
+            st.write("[UI] Received user input:", user_input)
             # Convert session state messages to LangChain message format
             conversation_messages = self._extract_conversation_messages()
+            st.write(f"[UI] Conversation has {len(conversation_messages)} messages")
 
             # Get response from agent
+            st.write("[UI] Invoking agent runner... (RAG and tools may be triggered)")
             response = st.session_state.runner.process_query(conversation_messages)
+            st.write("[UI] Agent runner completed")
 
             # Create and display AI message
             ai_message = AIMessage(content=response)
@@ -193,12 +211,16 @@ class StreamlitApp:
 
         # Initialize agent runner if not already done
         if "runner" not in st.session_state:
+            st.write("[UI] Initializing JohnDeereAgentRunner...")
             st.session_state.runner = agent_module.JohnDeereAgentRunner(
                 callbacks=[GalileoCallback()]
             )
+            st.write("[UI] Agent runner ready")
 
         # Get user input and process it
         user_input = self.get_user_input()
+        if user_input:
+            st.write("[UI] Processing user input from chat box or example button...")
         self.process_user_input(user_input)
 
 

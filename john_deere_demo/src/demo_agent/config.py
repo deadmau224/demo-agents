@@ -33,17 +33,20 @@ class OpenAIConfig:
 
 @dataclass
 class AIGatewayConfig:
-    """AI Gateway configuration."""
-    
-    base_url: str
-    api_key: str
+    """AI Gateway configuration using OAuth credentials."""
+
+    issuer_url: Optional[str]
+    client_id: Optional[str]
+    client_secret: Optional[str]
+    registration_id: Optional[str]
+    # Optional override; defaults to Deere AI Gateway OpenAI-compatible endpoint
+    base_url: str = "https://ai-gateway.deere.com/openai"
     model: str = "gpt-4o-mini"
-    registration_id: Optional[str] = None
-    
+
     @property
     def is_valid(self) -> bool:
-        """Check if AI Gateway configuration is valid."""
-        return bool(self.base_url and self.api_key)
+        """Check if AI Gateway configuration is valid (when enabled)."""
+        return bool(self.issuer_url and self.client_id and self.client_secret and self.registration_id)
 
 
 @dataclass
@@ -66,10 +69,12 @@ class AppConfig:
                 model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
             ),
             ai_gateway=AIGatewayConfig(
-                base_url=os.getenv("AI_GATEWAY_BASE_URL", ""),
-                api_key=os.getenv("AI_GATEWAY_API_KEY", ""),
-                model=os.getenv("AI_GATEWAY_MODEL", "gpt-4o-mini"),
+                issuer_url=os.getenv("AI_GATEWAY_ISSUER"),
+                client_id=os.getenv("AI_GATEWAY_CLIENT_ID"),
+                client_secret=os.getenv("AI_GATEWAY_CLIENT_SECRET"),
                 registration_id=os.getenv("AI_GATEWAY_REGISTRATION_ID"),
+                base_url=os.getenv("AI_GATEWAY_BASE_URL", "https://ai-gateway.deere.com/openai"),
+                model=os.getenv("AI_GATEWAY_MODEL", "gpt-4o-mini"),
             ),
             chromadb=ChromaDBConfig(
                 persist_directory=os.getenv("CHROMADB_PERSIST_DIR", "./chroma_db"),

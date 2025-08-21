@@ -1,6 +1,6 @@
 """Constants and configuration values for the Demo Agent."""
 
-from typing import Final, TypedDict
+from typing import Final
 
 # AI Models
 DEFAULT_OPENAI_MODEL: Final[str] = "gpt-4o-mini"

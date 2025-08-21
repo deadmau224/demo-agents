@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Main entry point for the Demo Agent application.
 
-This module provides a clean interface to run the John Deere agent
-either as a Streamlit app or as a command-line tool.
+Provides two modes:
+- Streamlit app (default): Launches the chat UI backed by LangGraph.
+- CLI mode (`--cli`): Simple REPL that streams messages to the agent.
 """
 
 import argparse

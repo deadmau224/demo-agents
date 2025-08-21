@@ -5,7 +5,7 @@ A modular AI agent system for John Deere equipment sales and support, built with
 ## Features
 
 - **John Deere Agent**: Specialized AI agent for equipment sales and support
-- **RAG System**: Retrieval-Augmented Generation for knowledge base queries
+- **RAG System**: Retrieval-Augmented Generation for knowledge base queries (ChromaDB)
 - **Streamlit Web App**: User-friendly web interface
 - **CLI Mode**: Command-line interface for development and testing
 - **Modular Architecture**: Clean separation of concerns with proper imports
@@ -65,19 +65,25 @@ john_deere_demo/
    ```
 
 4. **Set up environment variables**:
-   Create a `.env` file with your API keys:
+   Create a `.env` file with your API keys and configuration:
    ```env
+   # OpenAI (direct)
    OPENAI_API_KEY=your_openai_api_key
-   PINECONE_API_KEY=your_pinecone_api_key
-   PINECONE_CLOUD=aws
-   PINECONE_REGION=us-east-1
+   # Optional: override default model
+   OPENAI_MODEL=gpt-4o-mini
+
+   # ChromaDB (local vector store)
+   CHROMADB_PERSIST_DIR=./chroma_db
+   CHROMADB_COLLECTION=john_deere_sales
    
    # Optional: John Deere AI Gateway
    USE_AI_GATEWAY=False
-   AI_GATEWAY_ISSUER=your_issuer_url
+   AI_GATEWAY_ISSUER=your_oauth_issuer_url
    AI_GATEWAY_CLIENT_ID=your_client_id
    AI_GATEWAY_CLIENT_SECRET=your_client_secret
    AI_GATEWAY_REGISTRATION_ID=your_registration_id
+   # OpenAI-compatible base URL for the gateway (defaults to https://ai-gateway.deere.com/openai)
+   AI_GATEWAY_BASE_URL=https://ai-gateway.deere.com/openai
    ```
 
 ## Usage
@@ -120,7 +126,7 @@ The project follows a clean, modular architecture with best practices:
 - **Agent Layer**: `john_deere/agent.py` - Core agent logic using LangGraph
 - **Tools Layer**: `john_deere/tools.py` - Specialized tools for John Deere operations
 - **Knowledge Layer**: `knowledge_bases/` - Domain-specific knowledge content
-- **RAG Layer**: `rag_tool.py` - Vector search and retrieval system
+- **RAG Layer**: `rag_tool.py` - Vector search and retrieval system (ChromaDB + OpenAI embeddings)
 - **Interface Layer**: `app.py` and `main.py` - User interfaces
 
 ## Best Practices Implemented
@@ -141,8 +147,8 @@ The project follows a clean, modular architecture with best practices:
 - **LangChain**: LLM orchestration and tool integration
 - **LangGraph**: Agent workflow management
 - **Streamlit**: Web application framework
-- **Pinecone**: Vector database for RAG
-- **OpenAI**: LLM provider
+- **ChromaDB**: Local vector database for RAG
+- **OpenAI**: LLM and embedding provider (direct or via AI Gateway)
 - **Galileo**: Experiment tracking and evaluation
 
 ## Contributing

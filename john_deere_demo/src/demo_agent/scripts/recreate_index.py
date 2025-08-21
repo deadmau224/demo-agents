@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Script to recreate the ChromaDB index with fresh data."""
 
-import os
 import sys
 from pathlib import Path
 
