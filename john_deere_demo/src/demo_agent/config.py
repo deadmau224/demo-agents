@@ -39,9 +39,9 @@ class AIGatewayConfig:
     client_id: Optional[str]
     client_secret: Optional[str]
     registration_id: Optional[str]
-    # Optional override; defaults to Deere AI Gateway OpenAI-compatible endpoint
+    # Optional override; defaults to Deere AI Gateway OpenAI-compatible endpoint (root)
     base_url: str = "https://ai-gateway.deere.com/openai"
-    model: str = "gpt-4o-mini"
+    model: str = "gpt-4o-mini-2024-07-18"
 
     @property
     def is_valid(self) -> bool:
@@ -74,7 +74,7 @@ class AppConfig:
                 client_secret=os.getenv("AI_GATEWAY_CLIENT_SECRET"),
                 registration_id=os.getenv("AI_GATEWAY_REGISTRATION_ID"),
                 base_url=os.getenv("AI_GATEWAY_BASE_URL", "https://ai-gateway.deere.com/openai"),
-                model=os.getenv("AI_GATEWAY_MODEL", "gpt-4o-mini"),
+                model=os.getenv("AI_GATEWAY_MODEL", "gpt-4o-mini-2024-07-18"),
             ),
             chromadb=ChromaDBConfig(
                 persist_directory=os.getenv("CHROMADB_PERSIST_DIR", "./chroma_db"),

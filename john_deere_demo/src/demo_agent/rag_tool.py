@@ -65,6 +65,10 @@ class RAGSystem:
         self._retrieval_chain: Optional[Any] = None
         self._initialized = False
 
+    # Notebook uses the base URL as provided; no normalization needed.
+    def _normalize_openai_base_url(self, raw_url: str) -> str:
+        return raw_url
+
     def initialize(self) -> None:
         """Initialize the RAG system components."""
         if self._initialized:
@@ -107,11 +111,12 @@ class RAGSystem:
                 raise ValueError(
                     "Cannot initialize embeddings without valid AI Gateway token/registration id"
                 )
-            logger.info("[RAG] embeddings: using AI Gateway at %s", config.ai_gateway.base_url)
+            normalized_base_url = self._normalize_openai_base_url(config.ai_gateway.base_url)
+            logger.info("[RAG] embeddings: using AI Gateway at %s", normalized_base_url)
             self._embeddings = OpenAIEmbeddings(
                 model=DEFAULT_EMBEDDING_MODEL,
                 api_key=access_token,
-                base_url=config.ai_gateway.base_url,
+                base_url=normalized_base_url,
                 default_headers={
                     "deere-ai-gateway-registration-id": config.ai_gateway.registration_id,
                 },
@@ -206,12 +211,13 @@ class RAGSystem:
                 config.ai_gateway.client_id,
                 config.ai_gateway.client_secret,
             )
-            logger.info("[RAG] llm: using AI Gateway model '%s'", config.ai_gateway.model)
+            normalized_base_url = self._normalize_openai_base_url(config.ai_gateway.base_url)
+            logger.info("[RAG] llm: using AI Gateway model '%s' base_url='%s'", config.ai_gateway.model, normalized_base_url)
             llm = ChatOpenAI(
                 temperature=0,
                 model=config.ai_gateway.model,
                 api_key=access_token,
-                base_url=config.ai_gateway.base_url,
+                base_url=normalized_base_url,
                 default_headers={
                     "deere-ai-gateway-registration-id": config.ai_gateway.registration_id or "",
                 },

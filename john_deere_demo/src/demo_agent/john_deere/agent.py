@@ -72,9 +72,9 @@ class JohnDeereAgent:
         if self.config.use_ai_gateway:
             try:
                 self._access_token = auth_helper.get_access_token(
-                    self.config.ai_gateway.base_url,
-                    self.config.ai_gateway.api_key,
-                    self.config.ai_gateway.registration_id or "",
+                    self.config.ai_gateway.issuer_url,
+                    self.config.ai_gateway.client_id,
+                    self.config.ai_gateway.client_secret,
                 )
                 if self._access_token:
                     logger.info("AI Gateway authentication successful")
@@ -102,10 +102,12 @@ class JohnDeereAgent:
                     self.config.ai_gateway.client_id,
                     self.config.ai_gateway.client_secret,
                 )
+            base_url = self.config.ai_gateway.base_url
+            logger.info("[AGENT] Using AI Gateway model=%s base_url=%s", self.config.ai_gateway.model, base_url)
             return ChatOpenAI(
                 model=self.config.ai_gateway.model,
                 api_key=self._access_token,
-                base_url=self.config.ai_gateway.base_url,
+                base_url=base_url,
                 default_headers={
                     "deere-ai-gateway-registration-id": self.config.ai_gateway.registration_id or ""
                 },
@@ -116,6 +118,28 @@ class JohnDeereAgent:
                 model=self.config.openai.model,
                 api_key=self.config.openai.api_key,
             )
+
+    def _normalize_openai_base_url(self, raw_url: str) -> str:
+        """Ensure the base URL points to an OpenAI-compatible /v1 endpoint.
+
+        Accepts values such as:
+        - https://ai-gateway.deere.com
+        - https://ai-gateway.deere.com/openai
+        - https://ai-gateway.deere.com/openai/v1
+
+        And normalizes them to end with /openai/v1 (no trailing slash).
+        """
+        if not raw_url:
+            return raw_url
+        url = raw_url.rstrip("/")
+        # If already ends with /v1, keep as-is
+        if url.endswith("/v1"):
+            return url
+        # If ends with /openai, append /v1
+        if url.endswith("/openai"):
+            return f"{url}/v1"
+        # Otherwise, append /openai/v1
+        return f"{url}/openai/v1"
 
     def create_agent_graph(
         self, system_prompt: Optional[str] = None
