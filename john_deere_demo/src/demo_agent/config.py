@@ -23,7 +23,7 @@ class OpenAIConfig:
     """OpenAI configuration."""
     
     api_key: str
-    model: str = "gpt-4o-mini"
+    model: str = "gpt-4.1"
     
     @property
     def is_valid(self) -> bool:
@@ -66,7 +66,7 @@ class AppConfig:
         return cls(
             openai=OpenAIConfig(
                 api_key=os.getenv("OPENAI_API_KEY", ""),
-                model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
+                model=os.getenv("OPENAI_MODEL", "gpt-4.1"),
             ),
             ai_gateway=AIGatewayConfig(
                 issuer_url=os.getenv("AI_GATEWAY_ISSUER"),

@@ -65,9 +65,24 @@ class RAGSystem:
         self._retrieval_chain: Optional[Any] = None
         self._initialized = False
 
-    # Notebook uses the base URL as provided; no normalization needed.
     def _normalize_openai_base_url(self, raw_url: str) -> str:
-        return raw_url
+        """Normalize base URL to ensure OpenAI-compatible path (/openai/v1).
+
+        Accepts values such as:
+        - https://ai-gateway.deere.com
+        - https://ai-gateway.deere.com/openai
+        - https://ai-gateway.deere.com/openai/v1
+
+        And normalizes them to end with /openai/v1 (no trailing slash).
+        """
+        if not raw_url:
+            return raw_url
+        url = raw_url.rstrip("/")
+        if url.endswith("/v1"):
+            return url
+        if url.endswith("/openai"):
+            return f"{url}/v1"
+        return f"{url}/openai/v1"
 
     def initialize(self) -> None:
         """Initialize the RAG system components."""
@@ -111,7 +126,7 @@ class RAGSystem:
                 raise ValueError(
                     "Cannot initialize embeddings without valid AI Gateway token/registration id"
                 )
-            normalized_base_url = self._normalize_openai_base_url(config.ai_gateway.base_url)
+            normalized_base_url = "https://ai-gateway.deere.com/openai"
             logger.info("[RAG] embeddings: using AI Gateway at %s", normalized_base_url)
             self._embeddings = OpenAIEmbeddings(
                 model=DEFAULT_EMBEDDING_MODEL,
@@ -211,7 +226,7 @@ class RAGSystem:
                 config.ai_gateway.client_id,
                 config.ai_gateway.client_secret,
             )
-            normalized_base_url = self._normalize_openai_base_url(config.ai_gateway.base_url)
+            normalized_base_url = "https://ai-gateway.deere.com/openai"
             logger.info("[RAG] llm: using AI Gateway model '%s' base_url='%s'", config.ai_gateway.model, normalized_base_url)
             llm = ChatOpenAI(
                 temperature=0,

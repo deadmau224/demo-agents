@@ -102,7 +102,8 @@ class JohnDeereAgent:
                     self.config.ai_gateway.client_id,
                     self.config.ai_gateway.client_secret,
                 )
-            base_url = self.config.ai_gateway.base_url
+            # Match working reference: use Deere AI Gateway OpenAI-compatible root
+            base_url = "https://ai-gateway.deere.com/openai"
             logger.info("[AGENT] Using AI Gateway model=%s base_url=%s", self.config.ai_gateway.model, base_url)
             return ChatOpenAI(
                 model=self.config.ai_gateway.model,
@@ -111,12 +112,14 @@ class JohnDeereAgent:
                 default_headers={
                     "deere-ai-gateway-registration-id": self.config.ai_gateway.registration_id or ""
                 },
+                temperature=0,
             )
         else:
             # Use OpenAI directly
             return ChatOpenAI(
                 model=self.config.openai.model,
                 api_key=self.config.openai.api_key,
+                temperature=0,
             )
 
     def _normalize_openai_base_url(self, raw_url: str) -> str:

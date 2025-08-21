@@ -3,9 +3,11 @@
 from typing import Final
 
 # AI Models
-DEFAULT_OPENAI_MODEL: Final[str] = "gpt-4o-mini"
-DEFAULT_AI_GATEWAY_MODEL: Final[str] = "gpt-4o-mini"
-DEFAULT_EMBEDDING_MODEL: Final[str] = "text-embedding-3-small"
+# Match working reference files: use gpt-4.1 for direct OpenAI and gpt-4o-mini-2024-07-18 via AI Gateway.
+# Use text-embedding-3-large to align with reference and avoid dimension mismatches elsewhere.
+DEFAULT_OPENAI_MODEL: Final[str] = "gpt-4.1"
+DEFAULT_AI_GATEWAY_MODEL: Final[str] = "gpt-4o-mini-2024-07-18"
+DEFAULT_EMBEDDING_MODEL: Final[str] = "text-embedding-3-large"
 
 # ChromaDB Configuration
 DEFAULT_CHROMADB_PERSIST_DIR: Final[str] = "./chroma_db"
