@@ -10,6 +10,7 @@ A modular AI agent system for John Deere equipment sales and support, built with
 - **CLI Mode**: Command-line interface for development and testing
 - **Modular Architecture**: Clean separation of concerns with proper imports
 - **Production Ready**: Follows all Python best practices and coding standards
+- **AI Gateway Support**: OAuth-based authentication for John Deere AI Gateway
 
 ## Project Structure
 
@@ -39,7 +40,8 @@ john_deere_demo/
 │       │   ├── john_deere.py  # John Deere product knowledge
 │       │   └── supply_chain.py # Supply chain knowledge
 │       └── scripts/           # Utility scripts
-│           └── run_experiment.py # Galileo experiment runner
+│           ├── run_experiment.py # Galileo experiment runner
+│           └── diagnose_ai_gateway.py # AI Gateway connectivity diagnostics
 ├── pyproject.toml             # Project configuration (uv)
 ├── setup.py                   # Alternative setup (setuptools)
 ├── uv.lock                    # Dependency lock file
@@ -66,25 +68,55 @@ john_deere_demo/
 
 4. **Set up environment variables**:
    Create a `.env` file with your API keys and configuration:
-   ```env
-   # OpenAI (direct)
-   OPENAI_API_KEY=your_openai_api_key
-   # Optional: override default model
-   OPENAI_MODEL=gpt-4o-mini
 
+   **Option 1: Direct OpenAI (Default)**
+   ```env
+   # OpenAI API (direct)
+   OPENAI_API_KEY=your_openai_api_key
+   OPENAI_MODEL=gpt-4.1
+   
    # ChromaDB (local vector store)
    CHROMADB_PERSIST_DIR=./chroma_db
    CHROMADB_COLLECTION=john_deere_sales
    
-   # Optional: John Deere AI Gateway
-   USE_AI_GATEWAY=False
+   # Disable AI Gateway
+   USE_AI_GATEWAY=false
+   ```
+
+   **Option 2: John Deere AI Gateway**
+   ```env
+   # Enable AI Gateway
+   USE_AI_GATEWAY=true
+   
+   # OAuth credentials for AI Gateway
    AI_GATEWAY_ISSUER=your_oauth_issuer_url
    AI_GATEWAY_CLIENT_ID=your_client_id
    AI_GATEWAY_CLIENT_SECRET=your_client_secret
    AI_GATEWAY_REGISTRATION_ID=your_registration_id
-   # OpenAI-compatible base URL for the gateway (defaults to https://ai-gateway.deere.com/openai)
-   AI_GATEWAY_BASE_URL=https://ai-gateway.deere.com/openai
+   
+   # AI Gateway models (fixed endpoints)
+   AI_GATEWAY_MODEL=gpt-4o-mini-2024-07-18
+   
+   # ChromaDB (local vector store)
+   CHROMADB_PERSIST_DIR=./chroma_db
+   CHROMADB_COLLECTION=john_deere_sales
+   
+   # Optional: Galileo tracking
+   GALILEO_PROJECT=john-deere-agent-evaluation
+   GALILEO_EXPERIMENT=john-deere-agent-test
    ```
+
+## AI Gateway Configuration
+
+When `USE_AI_GATEWAY=true`, the system:
+
+- **Authenticates via OAuth** using your issuer, client ID, and client secret
+- **Uses fixed base URL**: `https://ai-gateway.deere.com/openai` (not configurable)
+- **Includes required header**: `deere-ai-gateway-registration-id`
+- **Supports models**:
+  - Chat: `gpt-4o-mini-2024-07-18` (default)
+  - Embeddings: `text-embedding-3-large`
+- **Falls back to direct OpenAI** if AI Gateway is disabled
 
 ## Usage
 
@@ -101,6 +133,12 @@ uv run streamlit run src/demo_agent/app.py
 ```bash
 # Run in CLI mode
 uv run demo-agent --cli
+```
+
+### AI Gateway Diagnostics
+```bash
+# Test AI Gateway connectivity and configuration
+python src/demo_agent/scripts/diagnose_ai_gateway.py
 ```
 
 ### Development
@@ -120,14 +158,34 @@ uv run ruff check src/demo_agent/
 
 The project follows a clean, modular architecture with best practices:
 
-- **Configuration Layer**: `config.py` - Centralized configuration management
-- **Constants Layer**: `constants.py` - All magic numbers and strings
+- **Configuration Layer**: `config.py` - Centralized configuration management with AI Gateway toggle
+- **Constants Layer**: `constants.py` - Model names, embedding models, and configuration values
 - **Logging Layer**: `utils/logging.py` - Proper logging infrastructure
-- **Agent Layer**: `john_deere/agent.py` - Core agent logic using LangGraph
+- **Agent Layer**: `john_deere/agent.py` - Core agent logic using LangGraph with AI Gateway support
 - **Tools Layer**: `john_deere/tools.py` - Specialized tools for John Deere operations
 - **Knowledge Layer**: `knowledge_bases/` - Domain-specific knowledge content
 - **RAG Layer**: `rag_tool.py` - Vector search and retrieval system (ChromaDB + OpenAI embeddings)
 - **Interface Layer**: `app.py` and `main.py` - User interfaces
+- **Authentication**: `helpers/auth_helper.py` - OAuth token management for AI Gateway
+
+## Key Logic Updates
+
+### AI Gateway Integration
+- **Fixed base URL**: Always uses `https://ai-gateway.deere.com/openai` for AI Gateway calls
+- **OAuth authentication**: Automatic token acquisition and refresh
+- **Header management**: Required `deere-ai-gateway-registration-id` header
+- **Model compatibility**: Supports both chat and embedding models via AI Gateway
+
+### RAG System
+- **ChromaDB storage**: Local vector database with automatic collection management
+- **Embedding models**: Uses `text-embedding-3-large` for high-quality embeddings
+- **Lazy initialization**: RAG system initializes only when first used
+- **Caching**: RAG instances are cached per collection and directory
+
+### Error Handling
+- **Graceful degradation**: Falls back to direct OpenAI if AI Gateway fails
+- **Configuration validation**: Ensures required environment variables are present
+- **Detailed logging**: Comprehensive error tracking and debugging information
 
 ## Best Practices Implemented
 
@@ -141,6 +199,8 @@ The project follows a clean, modular architecture with best practices:
 ✅ **Testing Ready** with modular, testable code  
 ✅ **Performance Optimized** with caching and lazy loading  
 ✅ **User Experience** with better error handling and feedback  
+✅ **AI Gateway Integration** with OAuth authentication  
+✅ **Environment Flexibility** supporting both direct OpenAI and AI Gateway  
 
 ## Dependencies
 
@@ -150,6 +210,20 @@ The project follows a clean, modular architecture with best practices:
 - **ChromaDB**: Local vector database for RAG
 - **OpenAI**: LLM and embedding provider (direct or via AI Gateway)
 - **Galileo**: Experiment tracking and evaluation
+- **Requests**: OAuth token acquisition for AI Gateway
+
+## Troubleshooting
+
+### AI Gateway Issues
+1. **Check environment variables**: Ensure all `AI_GATEWAY_*` variables are set
+2. **Verify OAuth credentials**: Test token acquisition with the diagnostic script
+3. **Check registration ID**: Ensure your app is registered and approved
+4. **Run diagnostics**: Use `diagnose_ai_gateway.py` to test connectivity
+
+### Common Errors
+- **404 Resource not found**: Usually indicates incorrect base URL or missing model access
+- **Authentication failed**: Check OAuth credentials and scopes
+- **Model not available**: Verify the model ID is deployed in your environment
 
 ## Contributing
 
@@ -159,6 +233,7 @@ The project follows a clean, modular architecture with best practices:
 4. Update the `__init__.py` files when adding new modules
 5. Test your changes with both CLI and web interfaces
 6. Follow the established logging and error handling patterns
+7. Test AI Gateway integration when making changes to model creation logic
 
 ## License
 
