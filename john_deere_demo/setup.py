@@ -4,7 +4,7 @@
 This is an alternative to pyproject.toml for users who prefer traditional Python packaging.
 """
 
-from setuptools import setup, find_packages
+from setuptools import find_packages, setup
 
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
@@ -18,7 +18,8 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/yourusername/john_deere_demo",
-    packages=find_packages(),
+    package_dir={"": "src"},
+    packages=find_packages(where="src"),
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Developers",
@@ -29,15 +30,14 @@ setup(
     ],
     python_requires=">=3.13",
     install_requires=[
+        "chromadb>=0.4.22",
         "dotenv>=0.9.9",
         "galileo>=1.15.0",
         "langchain-core>=0.3.74",
         "langchain-openai>=0.3.30",
-        "langchain-pinecone>=0.2.11",
+        "langchain-community>=0.3.0",
         "langchain-tavily>=0.2.11",
         "langgraph>=0.6.5",
-        "pinecone>=7.3.0",
-        "pinecone-plugin-interface>=0.0.7",
         "requests>=2.31.0",
         "streamlit>=1.48.1",
     ],

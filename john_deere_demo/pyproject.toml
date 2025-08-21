@@ -8,15 +8,14 @@ authors = [
 ]
 requires-python = ">=3.13"
 dependencies = [
+    "chromadb>=0.4.22",
     "dotenv>=0.9.9",
     "galileo>=1.15.0",
     "langchain-core>=0.3.74",
     "langchain-openai>=0.3.30",
-    "langchain-pinecone>=0.2.11",
+    "langchain-community>=0.3.0",
     "langchain-tavily>=0.2.11",
     "langgraph>=0.6.5",
-    "pinecone>=7.3.0",
-    "pinecone-plugin-interface>=0.0.7",
     "requests>=2.31.0",
     "streamlit>=1.48.1",
 ]
