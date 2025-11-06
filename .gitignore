@@ -1,8 +1,45 @@
+# Environment files
 .env
 **/.env
 
+# IDE
 .idea/
 **/.DS_Store
-__pycache__/
+.vscode/
 
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.so
 *.egg-info/
+
+# ChromaDB data files (large binary files)
+chroma_db/
+**/chroma_db/
+**/chroma_db/**/*.bin
+**/chroma_db/**/*.sqlite3
+
+# Pinecone data files (if using Pinecone instead)
+pinecone_db/
+**/pinecone_db/
+
+# General data directories
+**/data/
+**/data/**/*.bin
+**/data/**/*.sqlite3
+
+# Logs and temporary files
+*.log
+*.tmp
+*.cache
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Build artifacts
+build/
+dist/
