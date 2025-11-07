@@ -1,0 +1,57 @@
+name: Daily Agent Metrics Export
+
+on:
+  schedule:
+    # Run daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    # Allow manual triggering
+    inputs:
+      target_date:
+        description: 'Target date (YYYY-MM-DD). Leave empty for yesterday.'
+        required: false
+        type: string
+
+jobs:
+  export-metrics:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      working-directory: ./daily_agent_metrics
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Set target date
+      id: set-date
+      run: |
+        if [ -n "${{ github.event.inputs.target_date }}" ]; then
+          echo "TARGET_DATE=${{ github.event.inputs.target_date }}" >> $GITHUB_ENV
+        fi
+    
+    - name: Run export script
+      working-directory: ./daily_agent_metrics
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_REGION: ${{ secrets.AWS_REGION }}
+        S3_BUCKET: ${{ secrets.S3_BUCKET }}
+      run: |
+        python export_agent_metrics.py
+    
+    - name: Upload CSV as artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: agent-metrics-${{ github.run_id }}
+        path: daily_agent_metrics/agent_metrics_*.csv
+        retention-days: 30
+
