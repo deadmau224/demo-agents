@@ -1,6 +1,6 @@
 # Daily Agent Metrics Export
 
-This project exports daily agent call metrics (using mock data) to AWS S3.
+This project exports daily agent call metrics from ClickHouse to AWS S3.
 Calculates for each agent:
 - Average call length
 - 90th percentile call length
@@ -11,8 +11,80 @@ Calculates for each agent:
   - Average call length
   - 90th percentile call length
 - Export results as CSV (one file per day)
+- Query data from ClickHouse database (falls back to mock data if unavailable)
 - Upload to AWS S3 bucket (optional - falls back to local file if S3 unavailable)
 - Run daily via GitHub Actions
+
+## ClickHouse Setup
+
+### 1. Set Up ClickHouse Database
+
+You have several options:
+
+#### Option A: ClickHouse Cloud (Recommended)
+
+1. Sign up at https://clickhouse.com/cloud
+2. Create a service
+3. Get connection details from the dashboard
+
+#### Option B: Docker (For Local Testing)
+
+```bash
+docker run -d \
+  --name clickhouse-server \
+  -p 8123:8123 \
+  -p 9000:9000 \
+  clickhouse/clickhouse-server
+```
+
+Default credentials:
+- Host: `localhost`
+- Port: `9000` (native) or `8123` (HTTP)
+- Username: `default`
+- Password: (empty)
+
+#### Option C: Existing ClickHouse Instance
+
+Use your existing ClickHouse connection details.
+
+### 2. Create Database Schema
+
+Run these SQL commands in your ClickHouse database:
+
+```sql
+CREATE DATABASE IF NOT EXISTS default;
+
+CREATE TABLE IF NOT EXISTS conversations (
+    agent_id String,
+    call_start DateTime,
+    call_duration_sec Float32,
+    call_status String
+) ENGINE = MergeTree()
+ORDER BY (call_start, agent_id);
+```
+
+### 3. Insert Sample Data (For Testing)
+
+```sql
+INSERT INTO conversations VALUES
+('agent_001', '2025-11-06 10:00:00', 342.5, 'Answered'),
+('agent_001', '2025-11-06 11:15:00', 512.3, 'Answered'),
+('agent_002', '2025-11-06 09:30:00', 298.7, 'Answered'),
+('agent_002', '2025-11-06 14:20:00', 445.2, 'Answered'),
+('agent_003', '2025-11-06 12:00:00', 567.8, 'Answered');
+```
+
+### 4. Store ClickHouse Credentials in GitHub Secrets
+
+1. Go to your repository: https://github.com/deadmau224/demo-agents/settings/secrets/actions
+2. Click **"New repository secret"** for each:
+   - Name: `CLICKHOUSE_HOST`, Value: `ybdjbqn5cv.us-east-1.aws.clickhouse.cloud` (or your host)
+   - Name: `CLICKHOUSE_PORT`, Value: `8443` (or your port)
+   - Name: `CLICKHOUSE_DATABASE`, Value: `default` (or your database name)
+   - Name: `CLICKHOUSE_USER`, Value: `default` (or your username)
+   - Name: `CLICKHOUSE_PASSWORD`, Value: (your password)
+
+**Note:** The script will automatically fall back to mock data if ClickHouse credentials are not provided or connection fails.
 
 ## AWS Setup
 
@@ -66,6 +138,17 @@ pip install -r requirements.txt
 ```
 
 2. Set environment variables (optional - for local testing):
+
+**ClickHouse (optional - will use mock data if not set):**
+```bash
+export CLICKHOUSE_HOST=ybdjbqn5cv.us-east-1.aws.clickhouse.cloud
+export CLICKHOUSE_PORT=8443
+export CLICKHOUSE_DATABASE=default
+export CLICKHOUSE_USER=default
+export CLICKHOUSE_PASSWORD=your_password
+```
+
+**AWS S3 (optional - will save locally if not set):**
 ```bash
 export AWS_ACCESS_KEY_ID=your_access_key
 export AWS_SECRET_ACCESS_KEY=your_secret_key
@@ -112,8 +195,13 @@ The generated CSV files are:
 
 ### Local Testing
 
-1. **Test with AWS credentials:**
+1. **Test with ClickHouse and AWS credentials:**
 ```bash
+export CLICKHOUSE_HOST=ybdjbqn5cv.us-east-1.aws.clickhouse.cloud
+export CLICKHOUSE_PORT=8443
+export CLICKHOUSE_DATABASE=default
+export CLICKHOUSE_USER=default
+export CLICKHOUSE_PASSWORD=your_password
 export AWS_ACCESS_KEY_ID=your_access_key
 export AWS_SECRET_ACCESS_KEY=your_secret_key
 export AWS_REGION=us-east-1
@@ -121,16 +209,32 @@ export S3_BUCKET=your_bucket_name
 python export_agent_metrics.py
 ```
 
-2. **Test without AWS credentials (S3 disabled):**
+2. **Test with ClickHouse only (no S3):**
 ```bash
-# Don't set AWS environment variables
+export CLICKHOUSE_HOST=ybdjbqn5cv.us-east-1.aws.clickhouse.cloud
+export CLICKHOUSE_PORT=8443
+export CLICKHOUSE_DATABASE=default
+export CLICKHOUSE_USER=default
+export CLICKHOUSE_PASSWORD=your_password
 python export_agent_metrics.py
-# Should generate CSV locally and skip S3 upload
+# Should query ClickHouse and save CSV locally
 ```
 
-3. **Test with custom date:**
+3. **Test without ClickHouse (mock data):**
+```bash
+# Don't set ClickHouse environment variables
+python export_agent_metrics.py
+# Should use mock data and save CSV locally
+```
+
+4. **Test with custom date:**
 ```bash
 export TARGET_DATE=2024-01-15
+export CLICKHOUSE_HOST=ybdjbqn5cv.us-east-1.aws.clickhouse.cloud
+export CLICKHOUSE_PORT=8443
+export CLICKHOUSE_DATABASE=default
+export CLICKHOUSE_USER=default
+export CLICKHOUSE_PASSWORD=your_password
 python export_agent_metrics.py
 ```
 
@@ -170,12 +274,39 @@ agent_002,298.67,445.20,32,2024-01-15
 
 ## Current Implementation
 
-- **Data Source**: Uses mock/simulated data (no ClickHouse connection required yet)
+- **Data Source**: Queries ClickHouse database (falls back to mock data if unavailable)
 - **Output**: CSV files uploaded to S3 and saved as GitHub Actions artifacts
+- **ClickHouse**: Optional - script falls back to mock data if credentials missing or connection fails
 - **S3 Upload**: Optional - script continues to work even if S3 credentials are missing
-- **Future**: ClickHouse integration will be added later
 
 ## Troubleshooting
+
+### ClickHouse Connection Fails
+
+- **Error: "Failed to initialize ClickHouse client"**
+  - Verify ClickHouse credentials are correct in GitHub secrets
+  - Check that ClickHouse service is running and accessible
+  - Verify host and port are correct (port 8443 for HTTPS, 8123 for HTTP)
+  - Script will automatically fall back to mock data if connection fails
+
+- **Error: "Table 'conversations' does not exist"**
+  - Create the table using the SQL schema provided in the ClickHouse Setup section
+  - Verify you're using the correct database name
+
+- **Error: "Connection timeout" or "Cannot connect"**
+  - Check that ClickHouse host is accessible from GitHub Actions (public IP/domain)
+  - Verify firewall rules allow connections from GitHub Actions IPs
+  - For ClickHouse Cloud, ensure your service allows external connections
+
+- **No data returned from query**
+  - Verify data exists in the `conversations` table for the target date
+  - Check that `call_status = 'Answered'` matches your data
+  - Verify date format in `call_start` column matches expected format
+
+- **Using mock data instead of ClickHouse**
+  - This is normal if ClickHouse credentials are not set
+  - Check logs for "will use mock data" messages
+  - Verify all ClickHouse secrets are set in GitHub repository
 
 ### S3 Upload Fails
 

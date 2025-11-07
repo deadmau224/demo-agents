@@ -2,7 +2,7 @@
 """
 Daily Agent Metrics Export
 
-Exports daily agent call metrics (using mock data for now) to AWS S3.
+Exports daily agent call metrics from ClickHouse to AWS S3.
 Calculates for each agent:
 - Average call length
 - 90th percentile call length
@@ -16,6 +16,14 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Optional
 import logging
 import statistics
+
+# Optional ClickHouse support
+try:
+    import clickhouse_connect
+    CLICKHOUSE_AVAILABLE = True
+except ImportError:
+    CLICKHOUSE_AVAILABLE = False
+    clickhouse_connect = None
 
 # Optional S3 support
 try:
@@ -37,23 +45,90 @@ logger = logging.getLogger(__name__)
 
 
 class AgentMetricsExporter:
-    """Exports agent metrics using mock data, optionally uploads to S3."""
+    """Exports agent metrics from ClickHouse (or mock data), optionally uploads to S3."""
     
     def __init__(self, enable_s3: bool = True):
-        """Initialize exporter with mock data generation and optional S3.
+        """Initialize exporter with ClickHouse and optional S3.
         
         Args:
             enable_s3: If True, attempt to initialize S3 client (fails gracefully if credentials missing)
         """
-        logger.info("Initializing AgentMetricsExporter with mock data")
+        logger.info("Initializing AgentMetricsExporter")
+        self.clickhouse_client = None
+        self.clickhouse_enabled = False
         self.s3_client = None
         self.s3_bucket = None
         self.s3_enabled = False
         
+        # Initialize ClickHouse (optional)
+        if CLICKHOUSE_AVAILABLE:
+            self._init_clickhouse()
+        else:
+            logger.warning("clickhouse-connect not available - will use mock data")
+        
+        # Initialize S3 (optional)
         if enable_s3 and S3_AVAILABLE:
             self._init_s3()
         elif enable_s3 and not S3_AVAILABLE:
             logger.warning("boto3 not available - S3 upload disabled. Install boto3 to enable S3 upload.")
+    
+    def _init_clickhouse(self) -> None:
+        """Initialize ClickHouse client (optional, fails gracefully if credentials missing)."""
+        try:
+            host = os.getenv('CLICKHOUSE_HOST')
+            port = os.getenv('CLICKHOUSE_PORT')
+            database = os.getenv('CLICKHOUSE_DATABASE', 'default')
+            username = os.getenv('CLICKHOUSE_USER', 'default')
+            password = os.getenv('CLICKHOUSE_PASSWORD')
+            
+            # If host is provided, try to initialize ClickHouse
+            if host:
+                if not port:
+                    logger.warning("CLICKHOUSE_HOST set but CLICKHOUSE_PORT missing - ClickHouse disabled")
+                    return
+                
+                # Extract hostname if URL format is provided
+                if host.startswith('http://') or host.startswith('https://'):
+                    from urllib.parse import urlparse
+                    parsed = urlparse(host)
+                    host = parsed.hostname or host
+                    # Use port from URL if port not set separately
+                    if not port and parsed.port:
+                        port = str(parsed.port)
+                
+                # Remove port from hostname if included
+                if ':' in host:
+                    host = host.split(':')[0]
+                
+                try:
+                    port_int = int(port)
+                except ValueError:
+                    logger.warning(f"Invalid CLICKHOUSE_PORT '{port}' - ClickHouse disabled")
+                    return
+                
+                # Use secure=True for HTTPS ports (8443), secure=False for HTTP ports (8123)
+                secure = port_int in [8443, 9440]  # HTTPS ports
+                
+                self.clickhouse_client = clickhouse_connect.get_client(
+                    host=host,
+                    port=port_int,
+                    database=database,
+                    username=username,
+                    password=password,
+                    secure=secure
+                )
+                
+                # Test connection
+                self.clickhouse_client.command('SELECT 1')
+                
+                self.clickhouse_enabled = True
+                logger.info(f"ClickHouse client initialized for {host}:{port_int} (secure={secure})")
+            else:
+                logger.info("CLICKHOUSE_HOST not set - will use mock data")
+        except Exception as e:
+            logger.warning(f"Failed to initialize ClickHouse client: {e} - will use mock data")
+            self.clickhouse_client = None
+            self.clickhouse_enabled = False
     
     def _init_s3(self) -> None:
         """Initialize S3 client (optional, fails gracefully if credentials missing)."""
@@ -116,15 +191,57 @@ class AgentMetricsExporter:
     
     def get_agent_metrics(self, target_date: datetime) -> List[Dict]:
         """
-        Generate mock agent metrics for a specific date.
+        Get agent metrics from ClickHouse or generate mock data.
         
         Args:
-            target_date: Date to generate metrics for
+            target_date: Date to query metrics for
             
         Returns:
             List of dictionaries with agent_id, avg_call_length, p90_call_length
         """
         date_str = target_date.strftime('%Y-%m-%d')
+        
+        # Try to get data from ClickHouse
+        if self.clickhouse_enabled:
+            try:
+                logger.info(f"Querying ClickHouse for metrics on date: {date_str}")
+                
+                # Query to calculate metrics per agent
+                query = f"""
+                SELECT 
+                    agent_id,
+                    AVG(call_duration_sec) AS avg_call_length,
+                    quantile(0.9)(call_duration_sec) AS p90_call_length,
+                    COUNT(*) AS total_calls
+                FROM conversations
+                WHERE 
+                    toDate(call_start) = '{date_str}'
+                    AND call_status = 'Answered'
+                GROUP BY agent_id
+                ORDER BY agent_id
+                """
+                
+                result = self.clickhouse_client.query(query)
+                
+                # Convert to list of dictionaries
+                metrics = []
+                for row in result.result_rows:
+                    agent_id, avg_length, p90_length, total_calls = row
+                    metrics.append({
+                        'agent_id': str(agent_id),
+                        'avg_call_length_sec': round(float(avg_length), 2),
+                        'p90_call_length_sec': round(float(p90_length), 2),
+                        'total_calls': int(total_calls)
+                    })
+                
+                logger.info(f"Retrieved metrics for {len(metrics)} agents from ClickHouse")
+                return metrics
+                
+            except Exception as e:
+                logger.warning(f"Error querying ClickHouse: {e} - falling back to mock data")
+                # Fall through to mock data generation
+        
+        # Fallback to mock data
         logger.info(f"Generating mock metrics for date: {date_str}")
         
         # Generate mock agents (5-10 agents)
@@ -152,7 +269,7 @@ class AgentMetricsExporter:
                 'total_calls': num_calls
             })
         
-        logger.info(f"Generated metrics for {len(metrics)} agents")
+        logger.info(f"Generated mock metrics for {len(metrics)} agents")
         return metrics
     
     def generate_csv(self, metrics: List[Dict], target_date: datetime) -> str:
@@ -227,7 +344,7 @@ class AgentMetricsExporter:
     
     def export_metrics(self, target_date: datetime = None, output_dir: str = None) -> Dict[str, str]:
         """
-        Main export function: generate metrics, create CSV, optionally upload to S3.
+        Main export function: query ClickHouse, generate CSV, optionally upload to S3.
         
         Args:
             target_date: Date to export (defaults to yesterday)
@@ -243,7 +360,7 @@ class AgentMetricsExporter:
         result = {}
         
         try:
-            # Generate metrics
+            # Get metrics (from ClickHouse or mock data)
             metrics = self.get_agent_metrics(target_date)
             
             # Generate CSV
@@ -292,7 +409,8 @@ def main():
         exporter = AgentMetricsExporter(enable_s3=True)
         result = exporter.export_metrics(target_date, output_dir)
         
-        print(f"Success! Metrics exported to: {result['csv_path']}")
+        data_source = "ClickHouse" if exporter.clickhouse_enabled else "mock data"
+        print(f"Success! Metrics exported from {data_source} to: {result['csv_path']}")
         if 's3_key' in result:
             print(f"Uploaded to S3: s3://{exporter.s3_bucket}/{result['s3_key']}")
         else:
