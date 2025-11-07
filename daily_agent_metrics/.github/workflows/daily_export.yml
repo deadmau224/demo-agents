@@ -59,4 +59,3 @@ jobs:
         name: agent-metrics-${{ github.run_id }}
         path: daily_agent_metrics/agent_metrics_*.csv
         retention-days: 30
-
