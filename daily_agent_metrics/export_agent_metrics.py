@@ -54,6 +54,26 @@ class AgentMetricsExporter:
             enable_s3: If True, attempt to initialize S3 client (fails gracefully if credentials missing)
         """
         logger.info("Initializing AgentMetricsExporter")
+        
+        # Debug: Check all ClickHouse-related environment variables
+        clickhouse_env_vars = {
+            'CLICKHOUSE_HOST': os.getenv('CLICKHOUSE_HOST'),
+            'CLICKHOUSE_PORT': os.getenv('CLICKHOUSE_PORT'),
+            'CLICKHOUSE_DATABASE': os.getenv('CLICKHOUSE_DATABASE'),
+            'CLICKHOUSE_USER': os.getenv('CLICKHOUSE_USER'),
+            'CLICKHOUSE_PASSWORD': os.getenv('CLICKHOUSE_PASSWORD'),
+        }
+        logger.info(f"🔍 Environment variables check:")
+        for key, value in clickhouse_env_vars.items():
+            if value:
+                # Hide sensitive values but show they're set
+                if 'PASSWORD' in key:
+                    logger.info(f"  {key}: *** (set, {len(value)} chars)")
+                else:
+                    logger.info(f"  {key}: {value}")
+            else:
+                logger.info(f"  {key}: NOT SET")
+        
         self.clickhouse_client = None
         self.clickhouse_enabled = False
         self.s3_client = None
