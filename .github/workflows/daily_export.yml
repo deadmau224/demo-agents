@@ -38,6 +38,29 @@ jobs:
           echo "TARGET_DATE=${{ github.event.inputs.target_date }}" >> $GITHUB_ENV
         fi
     
+    - name: Verify ClickHouse configuration
+      run: |
+        echo "🔍 Checking ClickHouse configuration..."
+        if [ -z "${{ secrets.CLICKHOUSE_HOST }}" ]; then
+          echo "❌ CLICKHOUSE_HOST secret is NOT set or is empty"
+        else
+          echo "✅ CLICKHOUSE_HOST secret exists"
+        fi
+        if [ -z "${{ secrets.CLICKHOUSE_PORT }}" ]; then
+          echo "❌ CLICKHOUSE_PORT secret is NOT set or is empty"
+        else
+          echo "✅ CLICKHOUSE_PORT secret exists"
+        fi
+        if [ -z "${{ secrets.CLICKHOUSE_PASSWORD }}" ]; then
+          echo "❌ CLICKHOUSE_PASSWORD secret is NOT set or is empty"
+        else
+          echo "✅ CLICKHOUSE_PASSWORD secret exists"
+        fi
+        echo "Testing environment variable access in next step..."
+      env:
+        TEST_HOST: ${{ secrets.CLICKHOUSE_HOST }}
+        TEST_PORT: ${{ secrets.CLICKHOUSE_PORT }}
+    
     - name: Run export script
       working-directory: ./daily_agent_metrics
       env:

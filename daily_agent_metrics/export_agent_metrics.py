@@ -81,8 +81,11 @@ class AgentMetricsExporter:
             username = os.getenv('CLICKHOUSE_USER', 'default')
             password = os.getenv('CLICKHOUSE_PASSWORD')
             
+            logger.info(f"🔍 ClickHouse config check - Host present: {bool(host)}, Port present: {bool(port)}, Password present: {bool(password)}")
+            
             # If host is provided, try to initialize ClickHouse
             if host:
+                logger.info(f"🔌 Attempting to connect to ClickHouse - Host: {host}, Port: {port}")
                 if not port:
                     logger.warning("CLICKHOUSE_HOST set but CLICKHOUSE_PORT missing - ClickHouse disabled")
                     return
