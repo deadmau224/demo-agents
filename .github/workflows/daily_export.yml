@@ -38,6 +38,27 @@ jobs:
           echo "TARGET_DATE=${{ github.event.inputs.target_date }}" >> $GITHUB_ENV
         fi
     
+    - name: Verify secrets are available
+      run: |
+        echo "=== SECRET VERIFICATION ==="
+        echo "Checking if secrets exist in GitHub..."
+        if [ -z "${{ secrets.CLICKHOUSE_HOST }}" ]; then
+          echo "❌ ERROR: CLICKHOUSE_HOST secret is NOT set in GitHub!"
+        else
+          echo "✅ CLICKHOUSE_HOST secret exists (value hidden)"
+        fi
+        if [ -z "${{ secrets.CLICKHOUSE_PORT }}" ]; then
+          echo "❌ ERROR: CLICKHOUSE_PORT secret is NOT set in GitHub!"
+        else
+          echo "✅ CLICKHOUSE_PORT secret exists (value: ${{ secrets.CLICKHOUSE_PORT }})"
+        fi
+        if [ -z "${{ secrets.AWS_ACCESS_KEY_ID }}" ]; then
+          echo "❌ ERROR: AWS_ACCESS_KEY_ID secret is NOT set!"
+        else
+          echo "✅ AWS_ACCESS_KEY_ID secret exists (S3 should work)"
+        fi
+        echo "=========================="
+    
     - name: Run export script
       working-directory: ./daily_agent_metrics
       env:
