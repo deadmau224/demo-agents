@@ -38,52 +38,6 @@ jobs:
           echo "TARGET_DATE=${{ github.event.inputs.target_date }}" >> $GITHUB_ENV
         fi
     
-    - name: Verify ClickHouse configuration
-      run: |
-        echo "🔍 Checking ClickHouse configuration..."
-        if [ -z "${{ secrets.CLICKHOUSE_HOST }}" ]; then
-          echo "❌ CLICKHOUSE_HOST secret is NOT set or is empty"
-        else
-          echo "✅ CLICKHOUSE_HOST secret exists"
-        fi
-        if [ -z "${{ secrets.CLICKHOUSE_PORT }}" ]; then
-          echo "❌ CLICKHOUSE_PORT secret is NOT set or is empty"
-        else
-          echo "✅ CLICKHOUSE_PORT secret exists"
-        fi
-        if [ -z "${{ secrets.CLICKHOUSE_PASSWORD }}" ]; then
-          echo "❌ CLICKHOUSE_PASSWORD secret is NOT set or is empty"
-        else
-          echo "✅ CLICKHOUSE_PASSWORD secret exists"
-        fi
-        echo "Testing environment variable access in next step..."
-      env:
-        TEST_HOST: ${{ secrets.CLICKHOUSE_HOST }}
-        TEST_PORT: ${{ secrets.CLICKHOUSE_PORT }}
-    
-    - name: Debug - Check environment variables
-      run: |
-        echo "🔍 Checking if environment variables are set..."
-        if [ -z "$CLICKHOUSE_HOST" ]; then
-          echo "❌ CLICKHOUSE_HOST is empty"
-        else
-          echo "✅ CLICKHOUSE_HOST is set (value hidden for security)"
-        fi
-        echo "CLICKHOUSE_PORT: ${CLICKHOUSE_PORT:-NOT SET}"
-        echo "CLICKHOUSE_DATABASE: ${CLICKHOUSE_DATABASE:-NOT SET}"
-        echo "CLICKHOUSE_USER: ${CLICKHOUSE_USER:-NOT SET}"
-        if [ -z "$CLICKHOUSE_PASSWORD" ]; then
-          echo "❌ CLICKHOUSE_PASSWORD is empty"
-        else
-          echo "✅ CLICKHOUSE_PASSWORD is set (value hidden)"
-        fi
-      env:
-        CLICKHOUSE_HOST: ${{ secrets.CLICKHOUSE_HOST }}
-        CLICKHOUSE_PORT: ${{ secrets.CLICKHOUSE_PORT }}
-        CLICKHOUSE_DATABASE: ${{ secrets.CLICKHOUSE_DATABASE }}
-        CLICKHOUSE_USER: ${{ secrets.CLICKHOUSE_USER }}
-        CLICKHOUSE_PASSWORD: ${{ secrets.CLICKHOUSE_PASSWORD }}
-    
     - name: Run export script
       working-directory: ./daily_agent_metrics
       env:
@@ -97,6 +51,11 @@ jobs:
         AWS_REGION: ${{ secrets.AWS_REGION }}
         S3_BUCKET: ${{ secrets.S3_BUCKET }}
       run: |
+        echo "🔍 Environment check:"
+        echo "CLICKHOUSE_HOST is ${CLICKHOUSE_HOST:+set}"
+        echo "CLICKHOUSE_PORT is ${CLICKHOUSE_PORT:+set}"
+        echo "AWS_ACCESS_KEY_ID is ${AWS_ACCESS_KEY_ID:+set}"
+        echo "S3_BUCKET is ${S3_BUCKET:+set}"
         python export_agent_metrics.py
     
     - name: Upload CSV as artifact
