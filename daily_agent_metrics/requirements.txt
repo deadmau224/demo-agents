@@ -1,2 +1,2 @@
-# No external dependencies required for now
-# The script uses only Python standard library
+boto3>=1.28.0
+

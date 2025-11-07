@@ -2,7 +2,7 @@
 """
 Daily Agent Metrics Export
 
-Exports daily agent call metrics (using mock data for now).
+Exports daily agent call metrics (using mock data for now) to AWS S3.
 Calculates for each agent:
 - Average call length
 - 90th percentile call length
@@ -13,9 +13,20 @@ import sys
 import csv
 import random
 from datetime import datetime, timedelta
-from typing import List, Dict
+from typing import List, Dict, Optional
 import logging
 import statistics
+
+# Optional S3 support
+try:
+    import boto3
+    from botocore.exceptions import ClientError, NoCredentialsError
+    S3_AVAILABLE = True
+except ImportError:
+    S3_AVAILABLE = False
+    boto3 = None
+    ClientError = Exception
+    NoCredentialsError = Exception
 
 # Configure logging
 logging.basicConfig(
@@ -26,11 +37,54 @@ logger = logging.getLogger(__name__)
 
 
 class AgentMetricsExporter:
-    """Exports agent metrics using mock data."""
+    """Exports agent metrics using mock data, optionally uploads to S3."""
     
-    def __init__(self):
-        """Initialize exporter with mock data generation."""
+    def __init__(self, enable_s3: bool = True):
+        """Initialize exporter with mock data generation and optional S3.
+        
+        Args:
+            enable_s3: If True, attempt to initialize S3 client (fails gracefully if credentials missing)
+        """
         logger.info("Initializing AgentMetricsExporter with mock data")
+        self.s3_client = None
+        self.s3_bucket = None
+        self.s3_enabled = False
+        
+        if enable_s3 and S3_AVAILABLE:
+            self._init_s3()
+        elif enable_s3 and not S3_AVAILABLE:
+            logger.warning("boto3 not available - S3 upload disabled. Install boto3 to enable S3 upload.")
+    
+    def _init_s3(self) -> None:
+        """Initialize S3 client (optional, fails gracefully if credentials missing)."""
+        try:
+            s3_bucket = os.getenv('S3_BUCKET')
+            aws_access_key = os.getenv('AWS_ACCESS_KEY_ID')
+            aws_secret_key = os.getenv('AWS_SECRET_ACCESS_KEY')
+            aws_region = os.getenv('AWS_REGION', 'us-east-1')
+            
+            # If bucket name is provided, try to initialize S3
+            if s3_bucket:
+                if not aws_access_key or not aws_secret_key:
+                    logger.warning("S3_BUCKET set but AWS credentials missing - S3 upload disabled")
+                    logger.info("Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY to enable S3 upload")
+                    return
+                
+                self.s3_client = boto3.client(
+                    's3',
+                    aws_access_key_id=aws_access_key,
+                    aws_secret_access_key=aws_secret_key,
+                    region_name=aws_region
+                )
+                self.s3_bucket = s3_bucket
+                self.s3_enabled = True
+                logger.info(f"S3 client initialized for bucket: {s3_bucket} in region: {aws_region}")
+            else:
+                logger.info("S3_BUCKET not set - S3 upload disabled (files will be saved locally)")
+        except NoCredentialsError:
+            logger.warning("AWS credentials not found - S3 upload disabled")
+        except Exception as e:
+            logger.warning(f"Failed to initialize S3 client: {e} - S3 upload disabled")
     
     def _generate_mock_call_data(self, agent_id: str, num_calls: int) -> List[float]:
         """
@@ -131,20 +185,62 @@ class AgentMetricsExporter:
         logger.info(f"Generated CSV file: {filename}")
         return filename
     
-    def export_metrics(self, target_date: datetime = None, output_dir: str = None) -> str:
+    def upload_to_s3(self, filename: str, target_date: datetime) -> Optional[str]:
         """
-        Main export function: generate metrics, create CSV.
+        Upload CSV file to S3 (optional).
+        
+        Args:
+            filename: Local CSV file path
+            target_date: Date for the metrics
+            
+        Returns:
+            S3 key (path) of uploaded file, or None if upload failed/disabled
+        """
+        if not self.s3_enabled:
+            logger.info("S3 upload disabled - skipping upload")
+            return None
+        
+        date_str = target_date.strftime('%Y-%m-%d')
+        s3_key = f"agent_metrics/{date_str}/{filename}"
+        
+        try:
+            logger.info(f"Uploading {filename} to s3://{self.s3_bucket}/{s3_key}")
+            self.s3_client.upload_file(
+                filename,
+                self.s3_bucket,
+                s3_key
+            )
+            logger.info(f"Successfully uploaded to s3://{self.s3_bucket}/{s3_key}")
+            return s3_key
+        except ClientError as e:
+            error_code = e.response.get('Error', {}).get('Code', 'Unknown')
+            if error_code == 'NoSuchBucket':
+                logger.error(f"S3 bucket '{self.s3_bucket}' does not exist")
+            elif error_code == 'AccessDenied':
+                logger.error(f"Access denied to S3 bucket '{self.s3_bucket}' - check IAM permissions")
+            else:
+                logger.error(f"Error uploading to S3: {e}")
+            return None
+        except Exception as e:
+            logger.error(f"Unexpected error uploading to S3: {e}")
+            return None
+    
+    def export_metrics(self, target_date: datetime = None, output_dir: str = None) -> Dict[str, str]:
+        """
+        Main export function: generate metrics, create CSV, optionally upload to S3.
         
         Args:
             target_date: Date to export (defaults to yesterday)
             output_dir: Directory to save CSV file (defaults to current directory)
             
         Returns:
-            Path to generated CSV file
+            Dictionary with 'csv_path' and optionally 's3_key' if uploaded
         """
         if target_date is None:
             # Default to yesterday (typical for daily exports)
             target_date = datetime.now() - timedelta(days=1)
+        
+        result = {}
         
         try:
             # Generate metrics
@@ -160,8 +256,19 @@ class AgentMetricsExporter:
                 os.rename(csv_filename, output_path)
                 csv_filename = output_path
             
-            logger.info(f"Export completed successfully: {csv_filename}")
-            return csv_filename
+            result['csv_path'] = csv_filename
+            
+            # Upload to S3 (optional, doesn't fail if disabled)
+            s3_key = self.upload_to_s3(csv_filename, target_date)
+            if s3_key:
+                result['s3_key'] = s3_key
+                # Don't delete local file if S3 upload succeeded - keep as backup
+                logger.info(f"CSV file kept locally at: {csv_filename}")
+            else:
+                logger.info(f"CSV file saved locally at: {csv_filename} (S3 upload not available/failed)")
+            
+            logger.info(f"Export completed successfully")
+            return result
             
         except Exception as e:
             logger.error(f"Export failed: {e}")
@@ -182,9 +289,15 @@ def main():
     output_dir = os.getenv('OUTPUT_DIR')
     
     try:
-        exporter = AgentMetricsExporter()
-        csv_path = exporter.export_metrics(target_date, output_dir)
-        print(f"Success! Metrics exported to: {csv_path}")
+        exporter = AgentMetricsExporter(enable_s3=True)
+        result = exporter.export_metrics(target_date, output_dir)
+        
+        print(f"Success! Metrics exported to: {result['csv_path']}")
+        if 's3_key' in result:
+            print(f"Uploaded to S3: s3://{exporter.s3_bucket}/{result['s3_key']}")
+        else:
+            print("Note: S3 upload not available - CSV file saved locally")
+        
         sys.exit(0)
     except Exception as e:
         logger.error(f"Export failed: {e}")
